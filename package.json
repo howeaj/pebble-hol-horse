@@ -1,0 +1,39 @@
+{
+  "name": "Hol Horse",
+  "author": "howeaj",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "Hol Horse",
+    "uuid": "dbff2dea-d6d3-4214-b213-d5362680db06",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "gabbro"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "messageKeys": [
+      "dummy"
+    ],
+    "resources": {
+      "media": [
+        {
+          "file": "app_icon.png",
+          "type": "bitmap",
+          "name": "APP_ICON",
+          "memoryFormat": "1Bit",
+          "menuIcon": true
+        },
+        {
+          "file": "face_real.png",
+          "type": "bitmap",
+          "name": "FACE_REAL"
+        }
+      ]
+    }
+  }
+}
