@@ -211,19 +211,23 @@ void bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit(
     const int16_t src_begin_y = src_bounds.origin.y;
     int16_t src_y = src_begin_y + src_origin_offset.y;
 
+    // gabbro's framebuffer format is set to circular despite it actually being rect
+    // which causes gbitmap_get_bytes_per_row to return 0 instead of the real value
+    const int16_t dest_bytes_per_row = PBL_DISPLAY_WIDTH; // gbitmap_get_bytes_per_row(dest_bitmap);
+    LOG("format: %d, dest_bytes_per_row: %u", gbitmap_get_format(dest_bitmap), dest_bytes_per_row);
+    LOG("dest_rect.origin.x: %d", dest_rect.origin.x);
+    ASSERT(dest_bytes_per_row != 0);
+    uint8_t* const dest = gbitmap_get_data(dest_bitmap);
+    const GRect dest_bounds = gbitmap_get_bounds(dest_bitmap);
+
     const int16_t dest_incr_x = (op_flags & OpFlag_FlipHorz) ? -1 : 1;
 
     for (int16_t i = 0; i < (dest_end_y - dest_begin_y); ++i, ++src_y) {
         const int16_t dest_y = (op_flags & OpFlag_FlipVert) ? dest_end_y - i : dest_begin_y + i;
 
-        const GBitmapDataRowInfo dest_row_info = gbitmap_get_data_row_info(dest_bitmap, dest_y);
-        uint8_t *dest = dest_row_info.data;
-        const int16_t dest_delta_begin_x = MAX(dest_row_info.min_x - dest_rect.origin.x, 0);
-        const int16_t dest_begin_x = dest_delta_begin_x ? dest_row_info.min_x : dest_rect.origin.x;
-        const int16_t dest_end_x = MIN(grect_get_max_x(&dest_rect), dest_row_info.max_x + 1);
-        if (dest_end_x < dest_begin_x) {
-            continue;
-        }
+        const int16_t dest_delta_begin_x = MAX(0 - dest_rect.origin.x, 0);
+        const int16_t dest_begin_x = dest_delta_begin_x ? 0 : dest_rect.origin.x;
+        const int16_t dest_end_x = MIN(grect_get_max_x(&dest_rect), grect_get_max_x(&dest_bounds));
 
         const GBitmapDataRowInfo src_row_info = gbitmap_get_data_row_info(src_bitmap, src_y);
         const uint8_t *src = src_row_info.data;
@@ -233,9 +237,10 @@ void bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit(
         const int16_t src_end_x = MIN(grect_get_max_x(&src_bounds),
                                       src_row_info.max_x + 1);
 
+        const int32_t dest_row_offset = dest_y * dest_bytes_per_row;
         int16_t src_x = src_initial_x + src_origin_offset.x;
-        int16_t dest_x              = (op_flags & OpFlag_FlipHorz) ? dest_end_x : dest_begin_x;
-        const int16_t dest_finish_x = (op_flags & OpFlag_FlipHorz) ? dest_begin_x : dest_end_x;
+        int32_t dest_x              = dest_row_offset + ((op_flags & OpFlag_FlipHorz) ? dest_end_x : dest_begin_x);
+        const int32_t dest_finish_x = dest_row_offset + ((op_flags & OpFlag_FlipHorz) ? dest_begin_x : dest_end_x);
         while (dest_x != dest_finish_x) {
             if (!WITHIN(src_x, src_begin_x, src_end_x - 1)) {
                 break;  // wrap-around handling removed
