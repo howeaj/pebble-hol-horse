@@ -24,6 +24,7 @@
 #include "macros.h"
 
 static GBitmap* s_face_real;
+static GBitmap* s_hand_hour_45;
 
 #if DEBUG
 // Return milliseconds since the epoch
@@ -49,7 +50,7 @@ static HandAngles s_hand_angles;
 
 // Update hand angles from a tick handler
 static void analogue_update_angles(struct tm *tick_time, TimeUnits units_changed) {
-    #define MPHI (5) // minutes per hour increment
+    #define MPHI (12) // minutes per hour increment
     if ((units_changed & HOUR_UNIT) || ((units_changed & MINUTE_UNIT) && ((tick_time->tm_min % MPHI) == 0))) {
         s_hand_angles.hour = (
             (((tick_time->tm_hour % 12) * (MINUTES_PER_HOUR / MPHI)) + (tick_time->tm_min / MPHI))
@@ -75,6 +76,226 @@ static bool analogue_is_vertical(int32_t angle) {
     );
 }
 
+// used to pass bimap info to get/set pixel accurately
+// from https://github.com/ygalanter/pebble-effect-layer
+typedef struct {
+   GBitmap *bitmap;  // actual bitmap for Chalk raw manipulation
+   uint8_t *bitmap_data;
+   int bytes_per_row;
+   GBitmapFormat bitmap_format;
+}  BitmapInfo;
+
+// get pixel color at given coordinates
+// Based on get_pixel() from https://github.com/ygalanter/pebble-effect-layer
+static uint8_t get_pixel(BitmapInfo bitmap_info, int y, int x) {
+    if ((bitmap_info.bitmap_format == GBitmapFormat1Bit) || (bitmap_info.bitmap_format == GBitmapFormat1BitPalette)) {
+        // for 1 bit bitmap on Aplite - shifting right to get bit
+        // 1 means White color in 1bit bitmaps; 2 means Black
+        return (
+            (((bitmap_info.bitmap_data[(y * bitmap_info.bytes_per_row) + (x / 8)] >> (x % 8)) & 1) == 1)
+            ? GColorWhiteARGB8 : GColorBlackARGB8
+        );
+    } else {  // otherwise (assuming GBitmapFormat8Bit) going byte-wise
+// #ifndef PBL_PLATFORM_CHALK
+        return bitmap_info.bitmap_data[(y * bitmap_info.bytes_per_row) + x];
+// #else // !PBL_PLATFORM_CHALK
+//         GBitmapDataRowInfo info = gbitmap_get_data_row_info(bitmap_info.bitmap, y);
+//         if ((x >= info.min_x) && (x <= info.max_x)) {
+//             return info.data[x];
+//         } else {
+//             return 0xffff;
+//         }
+// #endif // PBL_PLATFORM_CHALK
+    }
+}
+
+// set pixel color at given coordinates
+// Based on set_pixel() from https://github.com/ygalanter/pebble-effect-layer
+static void set_pixel(BitmapInfo bitmap_info, int y, int x, uint8_t color) {
+
+    if ((bitmap_info.bitmap_format == GBitmapFormat1Bit) || (bitmap_info.bitmap_format == GBitmapFormat1BitPalette)) {
+        // for 1 bit bitmap on Aplite  --- verify if it needs to be different
+        // White Color means 1 in 1bit bitmaps; Black Means 0
+        color = ((color == GColorWhiteARGB8) ? 1 : 0);
+        bitmap_info.bitmap_data[y * bitmap_info.bytes_per_row + x / 8] ^= (
+            (-color ^ bitmap_info.bitmap_data[(y * bitmap_info.bytes_per_row) + (x / 8)])
+            & (1 << (x % 8))
+        );
+
+    } else { // otherwise (assuming GBitmapFormat8Bit) going byte-wise
+// #ifndef PBL_PLATFORM_CHALK
+        bitmap_info.bitmap_data[y*bitmap_info.bytes_per_row + x] = color;
+// #else // !PBL_PLATFORM_CHALK
+//         GBitmapDataRowInfo info = gbitmap_get_data_row_info(bitmap_info.bitmap, y);
+//         if ((x >= info.min_x) && (x <= info.max_x)) {
+//             info.data[x] = color;
+//         }
+// #endif // !PBL_PLATFORM_CHALK
+    }
+}
+
+// Rotate the given `bitmap` by 90 degrees.
+// Based on bitmap_rotate_90() from https://github.com/ygalanter/pebble-effect-layer
+void bitmap_rotate_90(GBitmap* bitmap, bool clockwise){
+    const GRect bounds = gbitmap_get_bounds(bitmap);
+
+    BitmapInfo bitmap_info;
+    bitmap_info.bitmap = bitmap;
+    bitmap_info.bitmap_data = gbitmap_get_data(bitmap);
+    bitmap_info.bytes_per_row = gbitmap_get_bytes_per_row(bitmap);
+    bitmap_info.bitmap_format = gbitmap_get_format(bitmap);
+
+    ASSERT(bitmap_info.bitmap_format == GBitmapFormat8Bit);
+    LOG("bitmap format: %d", bitmap_info.bitmap_format);
+
+    // The centre of the bitmap
+    const uint8_t xCn = bounds.origin.x + (bounds.size.w / 2);
+    const uint8_t yCn = bounds.origin.y + (bounds.size.h / 2);
+
+    const uint8_t qtr = MIN(bounds.size.w, bounds.size.h) / 2;
+
+    for (int c1 = 0; c1 < qtr; c1++) {
+        for (int c2 = 1; c2 < qtr; c2++){
+            uint8_t temp_pixel = get_pixel(bitmap_info, yCn + c1, xCn + c2);
+            if (clockwise){
+                set_pixel(bitmap_info, yCn + c1, xCn + c2, get_pixel(bitmap_info, yCn - c2, xCn + c1));
+                set_pixel(bitmap_info, yCn - c2, xCn + c1, get_pixel(bitmap_info, yCn - c1, xCn - c2));
+                set_pixel(bitmap_info, yCn - c1, xCn - c2, get_pixel(bitmap_info, yCn + c2, xCn - c1));
+                set_pixel(bitmap_info, yCn + c2, xCn - c1, temp_pixel);
+            } else {
+                set_pixel(bitmap_info, yCn + c1, xCn + c2, get_pixel(bitmap_info, yCn + c2, xCn - c1));
+                set_pixel(bitmap_info, yCn + c2, xCn - c1, get_pixel(bitmap_info, yCn - c1, xCn - c2));
+                set_pixel(bitmap_info, yCn - c1, xCn - c2, get_pixel(bitmap_info, yCn - c2, xCn + c1));
+                set_pixel(bitmap_info, yCn - c2, xCn + c1, temp_pixel);
+            }
+        }
+    }
+}
+
+// Trivial stub of gcolor_alpha_blend
+GColor8 gcolor_alpha_blend(GColor8 src_color, GColor8 dest_color) {
+    if (src_color.a <= 1) {  // 0% or 33% opaque
+        return dest_color;
+    } else {  // 66% or 100% opaque
+        return src_color;
+    }
+}
+
+static inline GPoint gpoint_add(const GPoint a, const GPoint b) {
+  return GPoint(a.x + b.x, a.y + b.y);
+}
+static inline GPoint gpoint_sub(const GPoint a, const GPoint b) {
+    return GPoint(a.x - b.x, a.y - b.y);
+}
+static inline int16_t grect_get_max_y(const GRect *rect) {
+  return rect->origin.y + rect->size.h;
+}
+static inline int16_t grect_get_max_x(const GRect *rect) {
+  return rect->origin.x + rect->size.w;
+}
+
+typedef enum OpFlag {
+    OpFlag_FlipHorz = (1 << 0),
+    OpFlag_FlipVert = (1 << 1),
+    OpFlag_Rot180   = ((1 << 0) | (1 << 1)),  // alias for (OpFlag_FlipHorz | OpFlag_FlipVert)
+    OpFlag_Rot90    = (1 << 2),
+} OpFlag;
+
+
+void bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit(
+    GBitmap *dest_bitmap, const GBitmap *src_bitmap, GRect dest_rect, GPoint src_origin_offset, uint8_t op_flags)
+{
+    const GRect src_bounds = gbitmap_get_bounds(src_bitmap);
+    const int16_t dest_begin_y = dest_rect.origin.y;
+    const int16_t dest_end_y = grect_get_max_y(&dest_rect);
+    const int16_t src_begin_y = src_bounds.origin.y;
+    int16_t src_y = src_begin_y + src_origin_offset.y;
+
+    const int16_t dest_incr_x = (op_flags & OpFlag_FlipHorz) ? -1 : 1;
+
+    for (int16_t i = 0; i < (dest_end_y - dest_begin_y); ++i, ++src_y) {
+        const int16_t dest_y = (op_flags & OpFlag_FlipVert) ? dest_end_y - i : dest_begin_y + i;
+
+        const GBitmapDataRowInfo dest_row_info = gbitmap_get_data_row_info(dest_bitmap, dest_y);
+        uint8_t *dest = dest_row_info.data;
+        const int16_t dest_delta_begin_x = MAX(dest_row_info.min_x - dest_rect.origin.x, 0);
+        const int16_t dest_begin_x = dest_delta_begin_x ? dest_row_info.min_x : dest_rect.origin.x;
+        const int16_t dest_end_x = MIN(grect_get_max_x(&dest_rect), dest_row_info.max_x + 1);
+        if (dest_end_x < dest_begin_x) {
+            continue;
+        }
+
+        const GBitmapDataRowInfo src_row_info = gbitmap_get_data_row_info(src_bitmap, src_y);
+        const uint8_t *src = src_row_info.data;
+        // This is the initial position that takes into account destination delta shift
+        const int16_t src_initial_x = src_bounds.origin.x + dest_delta_begin_x;
+        const int16_t src_begin_x = MAX(src_row_info.min_x, src_bounds.origin.x);
+        const int16_t src_end_x = MIN(grect_get_max_x(&src_bounds),
+                                      src_row_info.max_x + 1);
+
+        int16_t src_x = src_initial_x + src_origin_offset.x;
+        int16_t dest_x              = (op_flags & OpFlag_FlipHorz) ? dest_end_x : dest_begin_x;
+        const int16_t dest_finish_x = (op_flags & OpFlag_FlipHorz) ? dest_begin_x : dest_end_x;
+        while (dest_x != dest_finish_x) {
+            if (!WITHIN(src_x, src_begin_x, src_end_x - 1)) {
+                break;  // wrap-around handling removed
+            }
+            GColor src_color = *(GColor8 *) &src[src_x];
+            dest[dest_x] = gcolor_alpha_blend(src_color, (GColor8)dest[dest_x]).argb;
+
+            dest_x += dest_incr_x;
+            ++src_x;
+        }
+        // for (int16_t j = 0; j < (dest_end_x - dest_begin_x); ++j, ++src_x) {
+        //     if (!WITHIN(src_x, src_begin_x, src_end_x - 1)) {
+        //         continue;  // wrap-around handling removed
+        //     }
+        //     const int16_t dest_x = (op_flags & OpFlag_FlipHorz) ? dest_end_x - j : dest_begin_x + j;
+        //     GColor src_color = *(GColor8 *) &src[src_x];
+        //     dest[dest_x] = gcolor_alpha_blend(src_color, (GColor8)dest[dest_x]).argb;
+        // }
+    }
+}
+
+// Draw a bitmap with any combination of OpFlag applied
+// todo change rect_ref to GPoint origin
+void graphics_draw_bitmap_in_rect_special(GContext *ctx, const GBitmap *src_bitmap, const GRect rect_ref, uint32_t op_flags) {
+    if (!ctx || !src_bitmap) {
+        ASSERT(false);
+        return;
+    }
+
+    GBitmap * const dest_bitmap = graphics_capture_frame_buffer(ctx);
+    const GRect dest_bounds = gbitmap_get_bounds(dest_bitmap);
+
+    // Make a copy of the rect and translate it to global screen coordinates
+    GRect rect = rect_ref;
+    rect.origin = gpoint_add(rect.origin, dest_bounds.origin);
+
+    // Save the original origin to compensate the position within src when rect.origin is negative
+    const GPoint unclipped_origin = rect.origin;
+
+    // Clip the rect to avoid drawing outside of the bitmap memory
+    grect_standardize(&rect);
+    grect_clip(&rect, &dest_bounds);
+    if (grect_is_empty(&rect)) {
+        ASSERT(false);
+        return;
+    }
+
+    // Calculate the offset of src_bitmap to use
+    const GPoint src_offset = gpoint_sub(rect.origin, unclipped_origin);
+
+    bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit(dest_bitmap, src_bitmap, rect, src_offset, op_flags);
+
+    // Mark the region where the bitmap was drawn as dirty
+    // TODO this is internal only
+    // graphics_context_mark_dirty_rect(ctx, rect);
+
+    graphics_release_frame_buffer(ctx, dest_bitmap);
+}
+
+
 /******************************************************************************
  This watchface implementation
 ******************************************************************************/
@@ -94,6 +315,11 @@ static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
     // const GRect bounds = layer_get_bounds(layer);
     // const GPoint centre = grect_center_point(&bounds);
     // TODO
+    const GRect bounds = layer_get_bounds(layer);
+    graphics_draw_bitmap_in_rect_special(ctx, s_hand_hour_45, bounds, 0);
+    graphics_draw_bitmap_in_rect_special(ctx, s_hand_hour_45, bounds, OpFlag_FlipHorz);
+    graphics_draw_bitmap_in_rect_special(ctx, s_hand_hour_45, bounds, OpFlag_FlipVert);
+    graphics_draw_bitmap_in_rect_special(ctx, s_hand_hour_45, bounds, OpFlag_FlipHorz | OpFlag_FlipVert);
 }
 
 static void draw_hand_sec(Layer* layer, GContext* ctx, int32_t angle) {
@@ -166,10 +392,13 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
 
 static void init_resources(Layer *root_layer) {
     s_face_real = gbitmap_create_with_resource(RESOURCE_ID_FACE_REAL);
+    s_hand_hour_45 = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_45);
+    // bitmap_rotate_90(s_hand_hour_45, true);
 }
 
 static void destroy_resources(void) {
     gbitmap_destroy(s_face_real);
+    gbitmap_destroy(s_hand_hour_45);
 }
 
 

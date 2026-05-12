@@ -32,6 +32,12 @@
           "file": "face_real.png",
           "type": "bitmap",
           "name": "FACE_REAL"
+        },
+        {
+          "file": "hand_hour_45.png",
+          "type": "bitmap",
+          "memoryFormat": "8Bit",
+          "name": "HAND_HOUR_45"
         }
       ]
     }
