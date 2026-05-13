@@ -24,9 +24,6 @@
 #include "graphics.h"
 #include "macros.h"
 
-static GBitmap* s_face_real;
-static GBitmap* s_hand_hour_45;
-
 #if DEBUG
 // Return milliseconds since the epoch
 uint32_t timestamp_ms(void) {
@@ -41,6 +38,8 @@ uint32_t timestamp_ms(void) {
  Analogue watch boilerplate
 ******************************************************************************/
 
+#define MPHI (12) // minutes per hour increment
+
 // Latest angles for clock hands, in TRIGANGLE units
 typedef struct HandAngles {
     int32_t hour;
@@ -51,7 +50,6 @@ static HandAngles s_hand_angles;
 
 // Update hand angles from a tick handler
 static void analogue_update_angles(struct tm *tick_time, TimeUnits units_changed) {
-    #define MPHI (12) // minutes per hour increment
     if ((units_changed & HOUR_UNIT) || ((units_changed & MINUTE_UNIT) && ((tick_time->tm_min % MPHI) == 0))) {
         s_hand_angles.hour = (
             (((tick_time->tm_hour % 12) * (MINUTES_PER_HOUR / MPHI)) + (tick_time->tm_min / MPHI))
@@ -83,6 +81,9 @@ static bool analogue_is_vertical(int32_t angle) {
  This watchface implementation
 ******************************************************************************/
 
+static GBitmap* s_face_real;
+static GBitmap* s_hand_hour_45;
+
 static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
     analogue_update_angles(tick_time, units_changed);
 }
@@ -111,19 +112,22 @@ static void draw_hand_sec(Layer* layer, GContext* ctx, int32_t angle) {
     const GPoint centre = grect_center_point(&bounds);
     const GRect mid_bounds = grect_crop(bounds, (PBL_DISPLAY_WIDTH / 6) - MUL_FRACT(PBL_DISPLAY_WIDTH / 6, 2, 5));
     const GPoint tip = gpoint_from_polar(mid_bounds, GOvalScaleModeFitCircle, angle);
-    graphics_context_set_stroke_color(ctx, GColorWhite);
 
+    graphics_context_set_stroke_color(ctx, GColorWhite);
+    graphics_context_set_antialiased(ctx, false);
     graphics_draw_line(ctx, centre, tip);
     if (analogue_is_vertical(angle)){
         graphics_draw_line(ctx, (GPoint){centre.x + 1, centre.y}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x - 1, centre.y}, tip);
         graphics_context_set_stroke_color(ctx, GColorBlack);
+        graphics_context_set_antialiased(ctx, true);
         graphics_draw_line(ctx, (GPoint){centre.x + 2, centre.y}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x - 2, centre.y}, tip);
-    } else {
+    } else {  // horizontal
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y + 1}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y - 1}, tip);
         graphics_context_set_stroke_color(ctx, GColorBlack);
+        graphics_context_set_antialiased(ctx, true);
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y + 2}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y - 2}, tip);
     }
@@ -162,14 +166,14 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
     graphics_draw_circle(ctx, centre, 9);
     graphics_draw_circle(ctx, centre, 3);
 
+    // hands
     const HandAngles hand_angles = analogue_get_angles();
-
-    // for (int i = 0; i < 60; i++)
-    // {
-        // hand_angles.min = DEG_TO_TRIGANGLE(i * (360/60));
     draw_hand_min(layer, ctx, hand_angles.min);
     draw_hand_hour(layer, ctx, hand_angles.hour);
     draw_hand_sec(layer, ctx, hand_angles.sec);
+    // for (int i /*= 0; i < 60; i+= 4) {
+        // hand_angles.sec = DEG_TO_TRIGANGLE(i * (360/60));
+    // }
 
     PROFILE_END("draw_main_window_layer");
 }
