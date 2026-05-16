@@ -33,12 +33,13 @@
           "type": "bitmap",
           "name": "FACE_REAL"
         },
-        {
-          "file": "hand_hour_45.png",
-          "type": "bitmap",
-          "memoryFormat": "8Bit",
-          "name": "HAND_HOUR_45"
-        }
+        {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_0.png",    "name": "HAND_HOUR_0"},
+        {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_7-5.png",  "name": "HAND_HOUR_7_5"},
+        {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_15.png",   "name": "HAND_HOUR_15"},
+        {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_22-5.png", "name": "HAND_HOUR_22_5"},
+        {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_30.png",   "name": "HAND_HOUR_30"},
+        {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_37-5.png", "name": "HAND_HOUR_37_5"},
+        {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_45.png",   "name": "HAND_HOUR_45"}
       ]
     }
   }

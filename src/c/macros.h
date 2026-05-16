@@ -12,6 +12,7 @@
 
 // Misc
 #define UNUSED(x) ((void)(x))
+#define ARRAY_LEN(array) (sizeof((array)) / sizeof((array)[0]))  // number of elements in the array
 
 // Maths
 #define MIN(a,b) (((a)<(b))?(a):(b))

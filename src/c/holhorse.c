@@ -4,7 +4,8 @@
     - Tick SFX
     - second leaves behind shadow?
     - 1 minute fast
-    - what should happen at noon?
+    - If seconds are visible at noon, play shoot animation panels
+    - Za Waldo stop time and invert colours for 5 seconds... but when to trigger?
     - complications (replace tick SFX)
         - bluetooth
         - battery
@@ -14,6 +15,7 @@
         Shake to activate
         Touch to activate
         Vibe on BT disconnect
+        Vibe on hour
         Low-power-mode under 20%
         Invert colours
 */
@@ -21,7 +23,7 @@
 #include <pebble.h>
 
 #include "debug.h"
-#include "graphics.h"
+#include "fliprot.h"
 #include "macros.h"
 
 #if DEBUG
@@ -32,6 +34,10 @@ uint32_t timestamp_ms(void) {
     return ((uint32_t)seconds * MS_PER_S) + millis;
 }
 #endif // DEBUG
+
+static inline GPoint gpoint_sub(const GPoint a, const GPoint b) {
+    return GPoint(a.x - b.x, a.y - b.y);
+}
 
 
 /******************************************************************************
@@ -81,8 +87,11 @@ static bool analogue_is_vertical(int32_t angle) {
  This watchface implementation
 ******************************************************************************/
 
+#define NUM_HAND_BITMAPS (7)  // The number of unique hand bitmaps
+#define HAND_BITMAPS_RANGE_DEG (45)  // The range of degrees covered by our hand bitmaps
+
 static GBitmap* s_face_real;
-static GBitmap* s_hand_hour_45;
+static GBitmap* s_hour_hand_bitmaps[NUM_HAND_BITMAPS];
 
 static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
     analogue_update_angles(tick_time, units_changed);
@@ -96,15 +105,29 @@ static void draw_hand_min(Layer* layer, GContext* ctx, int32_t angle) {
 }
 
 static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
-    // const GRect bounds = layer_get_bounds(layer);
-    // const GPoint centre = grect_center_point(&bounds);
-    // TODO
-    const GRect bounds = layer_get_bounds(layer);
-    // graphics_draw_bitmap_in_rect_fliprot(ctx, s_hand_hour_45, bounds, 0);
-    // graphics_draw_bitmap_in_rect_fliprot(ctx, s_hand_hour_45, bounds, OpFlag_FlipHorz);
-    // graphics_draw_bitmap_in_rect_fliprot(ctx, s_hand_hour_45, bounds, OpFlag_FlipVert);
-    // graphics_draw_bitmap_in_rect_fliprot(ctx, s_hand_hour_45, bounds, OpFlag_FlipHorz | OpFlag_FlipVert);
-    graphics_draw_bitmap_in_rect_fliprot(ctx, s_hand_hour_45, bounds, OpFlag_FlipVert | OpFlag_Rot90);
+    FliprotFlags fliprot_flags;
+    const size_t bitmap_index = fliprot_hand_bitmap_index(
+        NUM_HAND_BITMAPS, HAND_BITMAPS_RANGE_DEG, angle, &fliprot_flags);
+
+    // Select the target draw origin so that its centrepoint is in the centre of the screen.
+    static const GPoint bitmap_centre_points[NUM_HAND_BITMAPS] = {
+        {8, 79},  // 0
+        {4, 77},  // 7.5
+        {2, 74},  // 15
+        {1, 71},  // 22.5
+        {0, 67},  // 30
+        {0, 61},  // 37.5
+        {0, 54},  // 45
+    };
+    const GRect layer_bounds = layer_get_bounds(layer);
+    const GPoint layer_centre = grect_center_point(&layer_bounds);
+    const GPoint bitmap_centre = bitmap_centre_points[bitmap_index];
+    const GBitmap* bitmap = s_hour_hand_bitmaps[bitmap_index];
+    GRect target_rect = gbitmap_get_bounds(bitmap);
+    target_rect.origin = gpoint_sub(layer_centre, bitmap_centre);
+
+    // Draw
+    fliprot_draw_bitmap(ctx, bitmap, target_rect, fliprot_flags);
 }
 
 static void draw_hand_sec(Layer* layer, GContext* ctx, int32_t angle) {
@@ -171,21 +194,30 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
     draw_hand_min(layer, ctx, hand_angles.min);
     draw_hand_hour(layer, ctx, hand_angles.hour);
     draw_hand_sec(layer, ctx, hand_angles.sec);
-    // for (int i /*= 0; i < 60; i+= 4) {
-        // hand_angles.sec = DEG_TO_TRIGANGLE(i * (360/60));
-    // }
+
+    // static int i = 0;
+    // draw_hand_hour(layer, ctx, DEG_TO_TRIGANGLE(i * (360 / 60)));
+    // i = i + 1 % 60;
 
     PROFILE_END("draw_main_window_layer");
 }
 
 static void init_resources(Layer *root_layer) {
     s_face_real = gbitmap_create_with_resource(RESOURCE_ID_FACE_REAL);
-    s_hand_hour_45 = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_45);
+    s_hour_hand_bitmaps[0] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_0);
+    s_hour_hand_bitmaps[1] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_7_5);
+    s_hour_hand_bitmaps[2] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_15);
+    s_hour_hand_bitmaps[3] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_22_5);
+    s_hour_hand_bitmaps[4] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_30);
+    s_hour_hand_bitmaps[5] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_37_5);
+    s_hour_hand_bitmaps[6] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_45);
 }
 
 static void destroy_resources(void) {
     gbitmap_destroy(s_face_real);
-    gbitmap_destroy(s_hand_hour_45);
+    for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
+        gbitmap_destroy(s_hour_hand_bitmaps[i]);
+    }
 }
 
 
