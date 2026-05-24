@@ -138,19 +138,40 @@ typedef struct Complication {
 
     ComplicationState state;
     int32_t animation_counter;
-    AppTimer* timer;
 } Complication;
 
+static AppTimer* s_animation_timer = NULL;
 static GBitmap* s_tick;
 static Complication complications[NUM_COMPLICATIONS];
 
-static void draw_complication(Layer* layer, GContext* ctx, const Complication* complication) {
+static const uint32_t FRAMES_PER_STATE[ComplicationState_MAX] = {
+    0,              // ComplicationState_Off
+    FRAMERATE,      // ComplicationState_Appear
+    FRAMERATE * 2,  // ComplicationState_On
+    FRAMERATE / 2   // ComplicationState_Disappear
+};
+
+
+static void draw_complication(Layer* layer, GContext* ctx, Complication* complication) {
+    if (complication->state == ComplicationState_Off) {
+        return;
+    }
+
+    // Change state when counter expires
+    complication->animation_counter--;
+    if (complication->animation_counter <= 0) {
+        complication->state = (complication->state + 1) % ComplicationState_MAX;
+        complication->animation_counter = FRAMES_PER_STATE[complication->state];
+    }
 
     GColor debugColor = GColorYellow;  // TODO delete
 
     switch(complication->state) {
         case ComplicationState_Off:
-            return;  // nothing to draw
+            // TODO remove if erasure happens separately
+            graphics_context_set_fill_color(ctx, BGCOLOR);
+            graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
+            return;
             break;
         case ComplicationState_Appear:
             debugColor = GColorBlue;
@@ -160,12 +181,6 @@ static void draw_complication(Layer* layer, GContext* ctx, const Complication* c
             break;
         case ComplicationState_Disappear:
             debugColor = GColorRed;
-            if (complication->animation_counter <= 1) {
-                LOG("Disappear end");
-                graphics_context_set_fill_color(ctx, BGCOLOR);
-                graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
-                return;
-            }
             break;
         default:
             ASSERT(false);
@@ -193,50 +208,23 @@ static int8_t num_active_complications(void) {
     return count;
 }
 
-static const uint32_t FRAMES_PER_STATE[ComplicationState_MAX] = {
-    1,              // ComplicationState_Off
-    FRAMERATE,      // ComplicationState_Appear
-    1,              // ComplicationState_On
-    FRAMERATE / 2   // ComplicationState_Disappear
-};
-
-static void complication_nextframe(void* context);
-static void schedule_next_frame(Complication* complication) {
-    ASSERT(complication != NULL);
-
-    uint32_t wait_time_ms = 0;
-    switch(complication->state) {
-        case ComplicationState_Off:
-            return;  // stop scheduling frames
-            break;
-        case ComplicationState_Appear:
-            wait_time_ms = MS_PER_FRAME;
-            break;
-        case ComplicationState_On:
-            wait_time_ms = 2 * MS_PER_S;
-            break;
-        case ComplicationState_Disappear:
-            wait_time_ms = MS_PER_FRAME;
-            break;
-        default:
-            ASSERT(false);
-            break;
+static void complications_nextframe(void* context) {
+    mark_root_window_dirty();
+    if (num_active_complications() > 0) {
+        s_animation_timer = app_timer_register(MS_PER_FRAME, complications_nextframe, NULL);
+    } else {
+        s_animation_timer = NULL;
     }
-    complication->timer = app_timer_register(wait_time_ms, complication_nextframe, complication);
 }
 
-static void complication_nextframe(void* context) {
-    ASSERT(context != NULL);
-    Complication* complication = (Complication*) context;
-
-    mark_root_window_dirty();
-
-    complication->animation_counter--;
-    if (complication->animation_counter <= 0) {
-        complication->state = (complication->state + 1) % ComplicationState_MAX;
-        complication->animation_counter = FRAMES_PER_STATE[complication->state];
+static void stop_complications(void) {
+    // assumes all complications are already on
+    uint32_t delay = 0;
+    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        complications[i].state = ComplicationState_On;
+        complications[i].animation_counter = delay;
+        delay += FRAMERATE / 10;
     }
-    schedule_next_frame(complication);
 }
 
 static void start_complication(Complication* complication) {
@@ -272,7 +260,6 @@ static void start_complication(Complication* complication) {
 
     complication->state = ComplicationState_Appear;
     complication->animation_counter = FRAMES_PER_STATE[complication->state];
-    schedule_next_frame(complication);
 }
 
 
@@ -372,8 +359,14 @@ static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
     if (should_show_seconds()) {
         start_complication(&complications[s_num_seconds_shown]);
         s_num_seconds_shown = MIN(MAX_NUM_SECONDS, s_num_seconds_shown + 1);
+        if (s_animation_timer == NULL) {
+            complications_nextframe(NULL);
+        }
     } else {
-        s_num_seconds_shown = 0;
+        if (s_num_seconds_shown > 0) {
+            stop_complications();
+            s_num_seconds_shown = 0;
+        }
     }
 
     s_is_full_redraw = true;
@@ -517,7 +510,7 @@ static void main_window_load(Window *window) {
     layer_set_update_proc(root_layer, draw_root_layer);
     init_resources(root_layer);
     accel_tap_service_subscribe(accel_tap_handler);
-    activation_handler(NULL);
+    app_timer_register(1, activation_handler, NULL);
 }
 
 static void main_window_unload(Window *window) {
