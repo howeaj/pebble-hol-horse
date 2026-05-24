@@ -56,6 +56,7 @@ static GPoint point_from_angle(GPoint origin, int32_t angle, int32_t distance) {
 }
 
 static bool should_show_seconds(void);
+static void mark_root_window_dirty(void);
 
 
 /******************************************************************************
@@ -105,6 +106,12 @@ static bool analogue_is_vertical(int32_t angle) {
  This watchface implementation; complications
 ******************************************************************************/
 
+static bool s_is_full_redraw = true;
+
+
+#define FRAMERATE (30)
+#define MS_PER_FRAME (MS_PER_S / FRAMERATE)
+#define BGCOLOR (GColorWhite)
 
 #define NUM_COMPLICATIONS (3)
 #define COMPLICATION_RADIUS MUL_FRACT(PBL_DISPLAY_WIDTH, 1, 5) // distance from centre to place each complication
@@ -120,6 +127,8 @@ typedef enum ComplicationState {
     ComplicationState_Appear,
     ComplicationState_On,
     ComplicationState_Disappear,
+
+    ComplicationState_MAX,  // end-of-enum sentinel
 } ComplicationState;
 
 typedef struct Complication {
@@ -129,26 +138,47 @@ typedef struct Complication {
 
     ComplicationState state;
     int32_t animation_counter;
+    AppTimer* timer;
 } Complication;
 
 static GBitmap* s_tick;
 static Complication complications[NUM_COMPLICATIONS];
 
 static void draw_complication(Layer* layer, GContext* ctx, const Complication* complication) {
+
+    GColor debugColor = GColorYellow;  // TODO delete
+
     switch(complication->state) {
-    case ComplicationState_Off:
-        return;  // nothing to draw
-        break;
-    case ComplicationState_Appear:
-        break;
-    case ComplicationState_On:
-        break;
-    case ComplicationState_Disappear:
-        break;
-    default:
-        ASSERT(false);
-        break;
+        case ComplicationState_Off:
+            return;  // nothing to draw
+            break;
+        case ComplicationState_Appear:
+            debugColor = GColorBlue;
+            break;
+        case ComplicationState_On:
+            debugColor = GColorGreen;
+            break;
+        case ComplicationState_Disappear:
+            debugColor = GColorRed;
+            if (complication->animation_counter <= 1) {
+                LOG("Disappear end");
+                graphics_context_set_fill_color(ctx, BGCOLOR);
+                graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
+                return;
+            }
+            break;
+        default:
+            ASSERT(false);
+            break;
     }
+
+    if (!s_is_full_redraw) {  // erase the previous drawing
+        graphics_context_set_fill_color(ctx, BGCOLOR);
+        graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
+    }
+
+    graphics_context_set_fill_color(ctx, debugColor);
+    graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
 
     graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
 }
@@ -163,7 +193,55 @@ static int8_t num_active_complications(void) {
     return count;
 }
 
+static const uint32_t FRAMES_PER_STATE[ComplicationState_MAX] = {
+    1,              // ComplicationState_Off
+    FRAMERATE,      // ComplicationState_Appear
+    1,              // ComplicationState_On
+    FRAMERATE / 2   // ComplicationState_Disappear
+};
+
+static void complication_nextframe(void* context);
+static void schedule_next_frame(Complication* complication) {
+    ASSERT(complication != NULL);
+
+    uint32_t wait_time_ms = 0;
+    switch(complication->state) {
+        case ComplicationState_Off:
+            return;  // stop scheduling frames
+            break;
+        case ComplicationState_Appear:
+            wait_time_ms = MS_PER_FRAME;
+            break;
+        case ComplicationState_On:
+            wait_time_ms = 2 * MS_PER_S;
+            break;
+        case ComplicationState_Disappear:
+            wait_time_ms = MS_PER_FRAME;
+            break;
+        default:
+            ASSERT(false);
+            break;
+    }
+    complication->timer = app_timer_register(wait_time_ms, complication_nextframe, complication);
+}
+
+static void complication_nextframe(void* context) {
+    ASSERT(context != NULL);
+    Complication* complication = (Complication*) context;
+
+    mark_root_window_dirty();
+
+    complication->animation_counter--;
+    if (complication->animation_counter <= 0) {
+        complication->state = (complication->state + 1) % ComplicationState_MAX;
+        complication->animation_counter = FRAMES_PER_STATE[complication->state];
+    }
+    schedule_next_frame(complication);
+}
+
 static void start_complication(Complication* complication) {
+    ASSERT(complication != NULL);
+
     switch (complication->type) {
     case ComplicationType_Tick:
     default:
@@ -193,7 +271,8 @@ static void start_complication(Complication* complication) {
     };
 
     complication->state = ComplicationState_Appear;
-    complication->animation_counter = 0;
+    complication->animation_counter = FRAMES_PER_STATE[complication->state];
+    schedule_next_frame(complication);
 }
 
 
@@ -296,6 +375,8 @@ static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
     } else {
         s_num_seconds_shown = 0;
     }
+
+    s_is_full_redraw = true;
 }
 
 #define NUM_CLOCK_INDICES (60)
@@ -305,43 +386,46 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
 
     const GRect bounds = layer_get_bounds(layer);
 
-    // TODO move this into the bitmap
-    graphics_context_set_fill_color(ctx, GColorWhite);
-    graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+    graphics_context_set_compositing_mode(ctx, GCompOpSet); // enable transparency
+    if (s_is_full_redraw)
+    {
+        // TODO move this into the bitmap
+        graphics_context_set_fill_color(ctx, BGCOLOR);
+        graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
-    // static background
-    graphics_context_set_compositing_mode(ctx, GCompOpSet); // enable transparency, TODO disable
-    graphics_draw_bitmap_in_rect(ctx, s_face_real, bounds);
+        // static background
+        graphics_draw_bitmap_in_rect(ctx, s_face_real, bounds);
 
-    // indices
-    // TODO move this into the bitmap
-    graphics_context_set_fill_color(ctx, GColorBlack);
-    const GRect indices_bounds = grect_crop(bounds, PBL_DISPLAY_WIDTH / 6);
-    for (int32_t i = 0; i < NUM_CLOCK_INDICES; i++) {
-        const int16_t angle = i * DEG_TO_TRIGANGLE(360 / NUM_CLOCK_INDICES);
-        const GPoint point = gpoint_from_polar(indices_bounds, GOvalScaleModeFitCircle, angle);
-        graphics_fill_circle(ctx, point, (i % 5 == 0) ? 2 : 1);
-    }
+        // indices
+        // TODO move this into the bitmap
+        graphics_context_set_fill_color(ctx, GColorBlack);
+        const GRect indices_bounds = grect_crop(bounds, PBL_DISPLAY_WIDTH / 6);
+        for (int32_t i = 0; i < NUM_CLOCK_INDICES; i++) {
+            const int16_t angle = i * DEG_TO_TRIGANGLE(360 / NUM_CLOCK_INDICES);
+            const GPoint point = gpoint_from_polar(indices_bounds, GOvalScaleModeFitCircle, angle);
+            graphics_fill_circle(ctx, point, (i % 5 == 0) ? 2 : 1);
+        }
 
-    // centre
-    // TODO move this into the bitmap
-    const GPoint centre = grect_center_point(&bounds);
-    graphics_context_set_fill_color(ctx, GColorBlack);
-    graphics_context_set_stroke_color(ctx, GColorWhite);
-    graphics_fill_circle(ctx, centre, 11);
-    graphics_draw_circle(ctx, centre, 9);
-    graphics_draw_circle(ctx, centre, 3);
+        // centre
+        // TODO move this into the bitmap
+        const GPoint centre = grect_center_point(&bounds);
+        graphics_context_set_fill_color(ctx, GColorBlack);
+        graphics_context_set_stroke_color(ctx, GColorWhite);
+        graphics_fill_circle(ctx, centre, 11);
+        graphics_draw_circle(ctx, centre, 9);
+        graphics_draw_circle(ctx, centre, 3);
 
-    // hands
-    const HandAngles hand_angles = analogue_get_angles();
-    draw_hand_min(layer, ctx, hand_angles.min);
-    draw_hand_hour(layer, ctx, hand_angles.hour);
+        // hands
+        const HandAngles hand_angles = analogue_get_angles();
+        draw_hand_min(layer, ctx, hand_angles.min);
+        draw_hand_hour(layer, ctx, hand_angles.hour);
 
-    for (int8_t i = 1; i < s_num_seconds_shown; i++) {
-        draw_hand_sec_shadow(layer, ctx, hand_angles.sec - (i * (TRIG_MAX_ANGLE / MINUTES_PER_HOUR)));
-    }
-    if (s_num_seconds_shown > 0) {
-        draw_hand_sec(layer, ctx, hand_angles.sec);
+        for (int8_t i = 1; i < s_num_seconds_shown; i++) {
+            draw_hand_sec_shadow(layer, ctx, hand_angles.sec - (i * (TRIG_MAX_ANGLE / MINUTES_PER_HOUR)));
+        }
+        if (s_num_seconds_shown > 0) {
+            draw_hand_sec(layer, ctx, hand_angles.sec);
+        }
     }
 
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
@@ -351,6 +435,8 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
     // static int i = 0;
     // draw_hand_hour(layer, ctx, DEG_TO_TRIGANGLE(i * (360 / 60)));
     // i = i + 1 % 60;
+
+    s_is_full_redraw = false;
 
     PROFILE_END("draw_root_layer");
 }
@@ -395,10 +481,14 @@ static bool should_show_seconds(void) {
     return s_active_ticks_remaining > 0;
 }
 
+static void mark_root_window_dirty(void) {
+    layer_mark_dirty(window_get_root_layer(s_main_window));
+}
+
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     TRACE("tick_handler; s_active_ticks_remaining = %d", s_active_ticks_remaining);
     handle_tick(tick_time, units_changed);
-    layer_mark_dirty(window_get_root_layer(s_main_window));
+    mark_root_window_dirty();
 
     if (s_active_ticks_remaining == 0) {
         LOG("Schedule minute updates");
