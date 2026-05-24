@@ -117,6 +117,8 @@ static bool s_is_full_redraw = true;
 #define COMPLICATION_RADIUS MUL_FRACT(PBL_DISPLAY_WIDTH, 1, 5) // distance from centre to place each complication
 #define COMPLICATION_ARC_ANGLE DEG_TO_TRIGANGLE(50)  // how many degrees does it cover (depends on COMPLICATION_RADIUS)
 #define HAND_ARC_ANGLE DEG_TO_TRIGANGLE((360 / MINUTES_PER_HOUR) * 3)  // how many degrees does each hand cover
+#define FLOAT_PIXELS_PER_SECOND (6)
+#define FLOAT_FRAMES_PER_PIXEL (FRAMERATE / FLOAT_PIXELS_PER_SECOND)
 
 typedef enum ComplicationType {
     ComplicationType_Tick = 0,
@@ -135,6 +137,7 @@ typedef struct Complication {
     ComplicationType type;
     GBitmap* bitmap;
     GRect rect;
+    GPoint shake_offset;
 
     ComplicationState state;
     int32_t animation_counter;
@@ -146,8 +149,8 @@ static Complication complications[NUM_COMPLICATIONS];
 
 static const uint32_t FRAMES_PER_STATE[ComplicationState_MAX] = {
     0,              // ComplicationState_Off
-    FRAMERATE,      // ComplicationState_Appear
-    FRAMERATE * 2,  // ComplicationState_On
+    FRAMERATE / 4,  // ComplicationState_Appear
+    MUL_FRACT(FRAMERATE, 11, 4),  // ComplicationState_On
     FRAMERATE / 2   // ComplicationState_Disappear
 };
 
@@ -157,43 +160,46 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
         return;
     }
 
+    if (!s_is_full_redraw) {  // erase the previous drawing
+        // TODO erase the exact shape, not bounding box
+        graphics_context_set_fill_color(ctx, BGCOLOR);
+        graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
+    }
+
+    complication->rect.origin.x -= complication->shake_offset.x;
+    complication->rect.origin.y -= complication->shake_offset.y;
+
     // Change state when counter expires
     complication->animation_counter--;
     if (complication->animation_counter <= 0) {
         complication->state = (complication->state + 1) % ComplicationState_MAX;
         complication->animation_counter = FRAMES_PER_STATE[complication->state];
+        complication->shake_offset = (GPoint) {0, 0};
     }
 
-    GColor debugColor = GColorYellow;  // TODO delete
-
-    switch(complication->state) {
+    switch (complication->state) {
         case ComplicationState_Off:
-            // TODO remove if erasure happens separately
-            graphics_context_set_fill_color(ctx, BGCOLOR);
-            graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
             return;
             break;
         case ComplicationState_Appear:
-            debugColor = GColorBlue;
-            break;
-        case ComplicationState_On:
-            debugColor = GColorGreen;
+            complication->shake_offset = (GPoint) {
+                (rand() % 3) - 1, (rand() % 3) - 1
+            };
+            complication->rect.origin.x += complication->shake_offset.x;
+            complication->rect.origin.y += complication->shake_offset.y;
             break;
         case ComplicationState_Disappear:
-            debugColor = GColorRed;
+            // TODO dissolve
+            // fall-through
+        case ComplicationState_On:
+            if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
+                complication->rect.origin.y -= 1;
+            }
             break;
         default:
             ASSERT(false);
             break;
     }
-
-    if (!s_is_full_redraw) {  // erase the previous drawing
-        graphics_context_set_fill_color(ctx, BGCOLOR);
-        graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
-    }
-
-    graphics_context_set_fill_color(ctx, debugColor);
-    graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
 
     graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
 }
@@ -221,10 +227,12 @@ static void stop_complications(void) {
     // assumes all complications are already on
     uint32_t delay = 0;
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        complications[i].state = ComplicationState_On;
         complications[i].animation_counter = delay;
         delay += FRAMERATE / 10;
     }
+    // the last complication is still in State_Appear
+    complications[NUM_COMPLICATIONS - 1].state = ComplicationState_On;
+    complications[NUM_COMPLICATIONS - 1].shake_offset = (GPoint) {0, 0};
 }
 
 static void start_complication(Complication* complication) {
@@ -260,6 +268,7 @@ static void start_complication(Complication* complication) {
 
     complication->state = ComplicationState_Appear;
     complication->animation_counter = FRAMES_PER_STATE[complication->state];
+    complication->shake_offset = (GPoint) {0, 0};
 }
 
 
