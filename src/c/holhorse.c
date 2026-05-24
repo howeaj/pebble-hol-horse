@@ -6,6 +6,8 @@
     - 1 minute fast
     - If seconds are visible at noon, play shoot animation panels
     - Za Waldo stop time and invert colours for 5 seconds... but when to trigger?
+        - bluetooth disconnect?
+        - on charger?
     - complications (replace tick SFX)
         - bluetooth
         - battery
@@ -38,6 +40,9 @@ uint32_t timestamp_ms(void) {
 static inline GPoint gpoint_sub(const GPoint a, const GPoint b) {
     return GPoint(a.x - b.x, a.y - b.y);
 }
+
+
+static bool should_show_seconds(void);
 
 
 /******************************************************************************
@@ -85,17 +90,16 @@ static bool analogue_is_vertical(int32_t angle) {
 
 /******************************************************************************
  This watchface implementation
+
+/******************************************************************************
+ This watchface implementation; hands
 ******************************************************************************/
 
 #define NUM_HAND_BITMAPS (7)  // The number of unique hand bitmaps
 #define HAND_BITMAPS_RANGE_DEG (45)  // The range of degrees covered by our hand bitmaps
 
-static GBitmap* s_face_real;
 static GBitmap* s_hour_hand_bitmaps[NUM_HAND_BITMAPS];
 
-static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
-    analogue_update_angles(tick_time, units_changed);
-}
 
 static void draw_hand_min(Layer* layer, GContext* ctx, int32_t angle) {
     // const GRect bounds = layer_get_bounds(layer);
@@ -126,7 +130,6 @@ static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
     GRect target_rect = gbitmap_get_bounds(bitmap);
     target_rect.origin = gpoint_sub(layer_centre, bitmap_centre);
 
-    // Draw
     fliprot_draw_bitmap(ctx, bitmap, target_rect, fliprot_flags);
 }
 
@@ -156,8 +159,41 @@ static void draw_hand_sec(Layer* layer, GContext* ctx, int32_t angle) {
     }
 }
 
+static void draw_hand_sec_shadow(Layer* layer, GContext* ctx, int32_t angle) {
+    const GRect bounds = layer_get_bounds(layer);
+    const GPoint centre = grect_center_point(&bounds);
+    const GRect mid_bounds = grect_crop(bounds, (PBL_DISPLAY_WIDTH / 6) + MUL_FRACT(PBL_DISPLAY_WIDTH / 6, 1, 5));
+    const GPoint tip = gpoint_from_polar(mid_bounds, GOvalScaleModeFitCircle, angle);
+
+    graphics_context_set_stroke_color(ctx, GColorBlack);
+    graphics_draw_line(ctx, centre, tip);
+}
+
+
+/******************************************************************************
+ This watchface implementation; handlers
+******************************************************************************/
+
+static GBitmap* s_face_real;
+
+#define MAX_NUM_SECONDS (3)
+static int8_t s_num_seconds_shown = 0;
+
+
+static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
+    TRACE("handle_tick; s_num_seconds_shown = %d", s_num_seconds_shown);
+    analogue_update_angles(tick_time, units_changed);
+
+    if (should_show_seconds()) {
+        s_num_seconds_shown = MIN(MAX_NUM_SECONDS, s_num_seconds_shown + 1);
+    } else {
+        s_num_seconds_shown = 0;
+    }
+}
+
 #define NUM_CLOCK_INDICES (60)
 static void draw_root_layer(Layer* layer, GContext* ctx) {
+    TRACE("draw_root_layer; s_num_seconds_shown = %d", s_num_seconds_shown);
     PROFILE_START();
 
     const GRect bounds = layer_get_bounds(layer);
@@ -193,13 +229,19 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
     const HandAngles hand_angles = analogue_get_angles();
     draw_hand_min(layer, ctx, hand_angles.min);
     draw_hand_hour(layer, ctx, hand_angles.hour);
-    draw_hand_sec(layer, ctx, hand_angles.sec);
+
+    for (int8_t i = 1; i < s_num_seconds_shown; i++) {
+        draw_hand_sec_shadow(layer, ctx, hand_angles.sec - (i * (TRIG_MAX_ANGLE / MINUTES_PER_HOUR)));
+    }
+    if (s_num_seconds_shown > 0) {
+        draw_hand_sec(layer, ctx, hand_angles.sec);
+    }
 
     // static int i = 0;
     // draw_hand_hour(layer, ctx, DEG_TO_TRIGANGLE(i * (360 / 60)));
     // i = i + 1 % 60;
 
-    PROFILE_END("draw_main_window_layer");
+    PROFILE_END("draw_root_layer");
 }
 
 static void init_resources(Layer *root_layer) {
@@ -225,22 +267,53 @@ static void destroy_resources(void) {
  Generic watchface boilerplate
 ******************************************************************************/
 
+#define ACTIVE_DURATION_S (3)
+
 static Window* s_main_window;
+static int8_t s_active_ticks_remaining = -1;
+
+static bool should_show_seconds(void) {
+    return s_active_ticks_remaining > 0;
+}
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+    TRACE("tick_handler; s_active_ticks_remaining = %d", s_active_ticks_remaining);
     handle_tick(tick_time, units_changed);
     layer_mark_dirty(window_get_root_layer(s_main_window));
+
+    if (s_active_ticks_remaining == 0) {
+        LOG("Schedule minute updates");
+        tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+    }
+    if (s_active_ticks_remaining >= 0) {
+        s_active_ticks_remaining -= 1;
+    }
+}
+
+static void activation_handler(void* context) {
+    UNUSED(context);
+    if (s_active_ticks_remaining == -1) {
+        LOG("Schedule second updates");
+        tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
+    }
+    s_active_ticks_remaining = ACTIVE_DURATION_S;
+}
+
+static void accel_tap_handler(AccelAxisType axis, int32_t direction) {
+    activation_handler(NULL);
 }
 
 static void main_window_load(Window *window) {
     Layer* const root_layer = window_get_root_layer(window);
     layer_set_update_proc(root_layer, draw_root_layer);
     init_resources(root_layer);
-    tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
+    accel_tap_service_subscribe(accel_tap_handler);
+    activation_handler(NULL);
 }
 
 static void main_window_unload(Window *window) {
     destroy_resources();
+    accel_tap_service_unsubscribe();
     tick_timer_service_unsubscribe();
 }
 
