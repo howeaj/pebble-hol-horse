@@ -28,11 +28,8 @@
           "memoryFormat": "1Bit",
           "menuIcon": true
         },
-        {
-          "file": "face_real.png",
-          "type": "bitmap",
-          "name": "FACE_REAL"
-        },
+        {"type": "bitmap", "file": "face_real.png", "name": "FACE_REAL" },
+        {"type": "bitmap", "file": "tick.png", "name": "TICK"},
         {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_0.png",    "name": "HAND_HOUR_0"},
         {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_7-5.png",  "name": "HAND_HOUR_7_5"},
         {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_15.png",   "name": "HAND_HOUR_15"},

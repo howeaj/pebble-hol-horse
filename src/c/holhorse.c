@@ -41,6 +41,19 @@ static inline GPoint gpoint_sub(const GPoint a, const GPoint b) {
     return GPoint(a.x - b.x, a.y - b.y);
 }
 
+// set the value at `index` in `bitmap`'s palette to `color`
+static inline void gbitmap_set_color(GBitmap* bitmap, size_t index, GColor color) {
+    gbitmap_get_palette(bitmap)[index] = color;
+}
+
+// Return a GPoint that is `distance` away from `origin` at `angle`.
+// If `origin` is 0, this is equivalent to converting `angle` to a cartesian vector of magnitude `distance`.
+static GPoint point_from_angle(GPoint origin, int32_t angle, int32_t distance) {
+    return (GPoint) {
+        .x = (int16_t)((sin_lookup(angle) * distance) / TRIG_MAX_RATIO) + origin.x,
+        .y = (int16_t)((-cos_lookup(angle) * distance) / TRIG_MAX_RATIO) + origin.y
+    };
+}
 
 static bool should_show_seconds(void);
 
@@ -89,7 +102,100 @@ static bool analogue_is_vertical(int32_t angle) {
 
 
 /******************************************************************************
- This watchface implementation
+ This watchface implementation; complications
+******************************************************************************/
+
+
+#define NUM_COMPLICATIONS (3)
+#define COMPLICATION_RADIUS MUL_FRACT(PBL_DISPLAY_WIDTH, 1, 5) // distance from centre to place each complication
+#define COMPLICATION_ARC_ANGLE DEG_TO_TRIGANGLE(50)  // how many degrees does it cover (depends on COMPLICATION_RADIUS)
+#define HAND_ARC_ANGLE DEG_TO_TRIGANGLE((360 / MINUTES_PER_HOUR) * 3)  // how many degrees does each hand cover
+
+typedef enum ComplicationType {
+    ComplicationType_Tick = 0,
+} ComplicationType;
+
+typedef enum ComplicationState {
+    ComplicationState_Off = 0,
+    ComplicationState_Appear,
+    ComplicationState_On,
+    ComplicationState_Disappear,
+} ComplicationState;
+
+typedef struct Complication {
+    ComplicationType type;
+    GBitmap* bitmap;
+    GRect rect;
+
+    ComplicationState state;
+    int32_t animation_counter;
+} Complication;
+
+static GBitmap* s_tick;
+static Complication complications[NUM_COMPLICATIONS];
+
+static void draw_complication(Layer* layer, GContext* ctx, const Complication* complication) {
+    switch(complication->state) {
+    case ComplicationState_Off:
+        return;  // nothing to draw
+        break;
+    case ComplicationState_Appear:
+        break;
+    case ComplicationState_On:
+        break;
+    case ComplicationState_Disappear:
+        break;
+    default:
+        ASSERT(false);
+        break;
+    }
+
+    graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
+}
+
+static int8_t num_active_complications(void) {
+    int8_t count = 0;
+    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        if (complications[i].state != ComplicationState_Off) {
+            count++;
+        }
+    }
+    return count;
+}
+
+static void start_complication(Complication* complication) {
+    switch (complication->type) {
+    case ComplicationType_Tick:
+    default:
+        complication->bitmap = s_tick;
+        break;
+    }
+
+    // choose location
+    const HandAngles hand_angles = analogue_get_angles();
+    int32_t angle = DEG_TO_TRIGANGLE(45);
+    int8_t remaining_complications = num_active_complications() * 2;
+    do {
+        angle += (COMPLICATION_ARC_ANGLE / 2);
+    } while (
+           (ABSDIFF_WRAP(angle % TRIG_MAX_ANGLE, hand_angles.sec, TRIG_MAX_ANGLE) < ((HAND_ARC_ANGLE + COMPLICATION_ARC_ANGLE) / 2))
+        || (ABSDIFF_WRAP(angle % TRIG_MAX_ANGLE, hand_angles.min, TRIG_MAX_ANGLE) < ((HAND_ARC_ANGLE + COMPLICATION_ARC_ANGLE) / 2))
+        || (ABSDIFF_WRAP(angle % TRIG_MAX_ANGLE, hand_angles.hour, TRIG_MAX_ANGLE) < ((HAND_ARC_ANGLE + COMPLICATION_ARC_ANGLE) / 2))
+        || (remaining_complications-- > 0)
+    );
+    angle = angle % TRIG_MAX_ANGLE;
+    const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
+    const GPoint bitmap_centre = point_from_angle(display_centre, angle, COMPLICATION_RADIUS);
+    complication->rect = gbitmap_get_bounds(complication->bitmap);
+    complication->rect.origin = (GPoint) {
+        bitmap_centre.x - complication->rect.size.w / 2,
+        bitmap_centre.y - complication->rect.size.h / 2
+    };
+
+    complication->state = ComplicationState_Appear;
+    complication->animation_counter = 0;
+}
+
 
 /******************************************************************************
  This watchface implementation; hands
@@ -185,6 +291,7 @@ static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
     analogue_update_angles(tick_time, units_changed);
 
     if (should_show_seconds()) {
+        start_complication(&complications[s_num_seconds_shown]);
         s_num_seconds_shown = MIN(MAX_NUM_SECONDS, s_num_seconds_shown + 1);
     } else {
         s_num_seconds_shown = 0;
@@ -237,6 +344,10 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
         draw_hand_sec(layer, ctx, hand_angles.sec);
     }
 
+    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        draw_complication(layer, ctx, &complications[i]);
+    }
+
     // static int i = 0;
     // draw_hand_hour(layer, ctx, DEG_TO_TRIGANGLE(i * (360 / 60)));
     // i = i + 1 % 60;
@@ -244,8 +355,13 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
     PROFILE_END("draw_root_layer");
 }
 
+static void set_bitmap_colors(void) {
+    gbitmap_set_color(s_tick, 0, GColorPurple);
+}
+
 static void init_resources(Layer *root_layer) {
     s_face_real = gbitmap_create_with_resource(RESOURCE_ID_FACE_REAL);
+    s_tick = gbitmap_create_with_resource(RESOURCE_ID_TICK);
     s_hour_hand_bitmaps[0] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_0);
     s_hour_hand_bitmaps[1] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_7_5);
     s_hour_hand_bitmaps[2] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_15);
@@ -253,10 +369,13 @@ static void init_resources(Layer *root_layer) {
     s_hour_hand_bitmaps[4] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_30);
     s_hour_hand_bitmaps[5] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_37_5);
     s_hour_hand_bitmaps[6] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_45);
+
+    set_bitmap_colors();
 }
 
 static void destroy_resources(void) {
     gbitmap_destroy(s_face_real);
+    gbitmap_destroy(s_tick);
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
         gbitmap_destroy(s_hour_hand_bitmaps[i]);
     }
