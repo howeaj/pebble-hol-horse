@@ -1,30 +1,34 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
 /* TODO
-    - Tick SFX
-    - second leaves behind shadow?
+    - Fix background and hands alignment
+    - Minute hand
+    - Fix bad hour hand angles
+    - Fix bad tick placements
     - 1 minute fast
     - If seconds are visible at noon, play shoot animation panels
     - Za Waldo stop time and invert colours for 5 seconds... but when to trigger?
         - bluetooth disconnect?
         - on charger?
-    - complications (replace tick SFX)
+    - complications (replace tick SFX, font: CCWildWords)
         - bluetooth
         - battery
-        - date
+        - day of week
+        - daydate
+        - month
+        - steps
     - config:
         1 min fast
         Shake to activate
         Touch to activate
-        Vibe on BT disconnect
-        Vibe on hour
         Low-power-mode under 20%
-        Invert colours
+        Colours
 */
 
 #include <pebble.h>
 
 #include "debug.h"
+#include "dissolve.h"
 #include "fliprot.h"
 #include "macros.h"
 
@@ -189,7 +193,7 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
             complication->rect.origin.y += complication->shake_offset.y;
             break;
         case ComplicationState_Disappear:
-            // TODO dissolve
+            dissolve(complication->bitmap);
             // fall-through
         case ComplicationState_On:
             if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
@@ -238,16 +242,16 @@ static void stop_complications(void) {
 static void start_complication(Complication* complication) {
     ASSERT(complication != NULL);
 
+    // set the complication's image
+    // this assumes all complication bitmaps are the same size
     switch (complication->type) {
         case ComplicationType_Tick:
         default:
-            memcpy(gbitmap_get_data(complication->bitmap), gbitmap_get_data(s_tick),
-                // TODO are rows H on non-gabbro platforms?
-                gbitmap_get_bytes_per_row(s_tick) * gbitmap_get_bounds(s_tick).size.h);
+            memcpy(gbitmap_get_data(complication->bitmap), gbitmap_get_data(s_tick), gbitmap_get_size(s_tick));
             break;
     }
 
-    // choose location
+    // choose starting location
     const HandAngles hand_angles = analogue_get_angles();
     int32_t angle = DEG_TO_TRIGANGLE(45);
     int8_t remaining_complications = num_active_complications() * 2;
