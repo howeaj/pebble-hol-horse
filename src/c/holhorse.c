@@ -239,10 +239,12 @@ static void start_complication(Complication* complication) {
     ASSERT(complication != NULL);
 
     switch (complication->type) {
-    case ComplicationType_Tick:
-    default:
-        complication->bitmap = s_tick;
-        break;
+        case ComplicationType_Tick:
+        default:
+            memcpy(gbitmap_get_data(complication->bitmap), gbitmap_get_data(s_tick),
+                // TODO are rows H on non-gabbro platforms?
+                gbitmap_get_bytes_per_row(s_tick) * gbitmap_get_bounds(s_tick).size.h);
+            break;
     }
 
     // choose location
@@ -444,7 +446,9 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
 }
 
 static void set_bitmap_colors(void) {
-    gbitmap_set_color(s_tick, 0, GColorPurple);
+    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        gbitmap_set_color(complications[i].bitmap, 0, GColorPurple);
+    }
 }
 
 static void init_resources(Layer *root_layer) {
@@ -458,12 +462,20 @@ static void init_resources(Layer *root_layer) {
     s_hour_hand_bitmaps[5] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_37_5);
     s_hour_hand_bitmaps[6] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_45);
 
+    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        complications[i].bitmap = gbitmap_create_blank(gbitmap_get_bounds(s_tick).size, gbitmap_get_format(s_tick));
+        ASSERT(complications[i].bitmap != NULL);
+    }
+
     set_bitmap_colors();
 }
 
 static void destroy_resources(void) {
     gbitmap_destroy(s_face_real);
     gbitmap_destroy(s_tick);
+    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        gbitmap_destroy(complications[i].bitmap);
+    }
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
         gbitmap_destroy(s_hour_hand_bitmaps[i]);
     }
