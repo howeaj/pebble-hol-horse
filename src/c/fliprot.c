@@ -271,18 +271,18 @@ bool fliprot_is_flipped(FliprotFlags flags) {
 
 // Return the index and fliprot flags of the hand bitmap to use for `angle`
 size_t fliprot_hand_bitmap_index(
-    size_t num_hand_bitmaps, int32_t hand_bitmaps_range_deg, int32_t angle, FliprotFlags* fliprot_flags)
+    size_t num_hand_bitmaps, int32_t hand_bitmaps_range_deg, int32_t angle_per_bitmap, int32_t angle, FliprotFlags* fliprot_flags)
 {
     // Select which bitmap to use
-    size_t i;
-    for (i = 1; i < num_hand_bitmaps; i++) {
+    int32_t i;
+    for (i = 1; i < (int32_t)num_hand_bitmaps; i++) {
         // LOG("index %u threshold = %i %u", i, DEG_TO_TRIGANGLE(i * 15) / 4, TRIGANGLE_TO_DEG(DEG_TO_TRIGANGLE(i * 15) / 4));
-        if ((angle % DEG_TO_TRIGANGLE(hand_bitmaps_range_deg)) <= (DEG_TO_TRIGANGLE((int32_t)i * 15) / 2)) {
+        if ((angle % DEG_TO_TRIGANGLE(hand_bitmaps_range_deg)) <= (i * angle_per_bitmap)) {
             break;
         }
     }
     i--;
-    LOG("Draw hour angle %i %i index #%u", angle, TRIGANGLE_TO_DEG(angle), i);
+    LOG("Draw angle %i %i index #%u", angle, TRIGANGLE_TO_DEG(angle), i);
     *fliprot_flags = fliprot_for_angle(angle, hand_bitmaps_range_deg);
     if (fliprot_is_flipped(*fliprot_flags)) {
         i = num_hand_bitmaps - i - 1;

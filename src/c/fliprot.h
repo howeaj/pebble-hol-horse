@@ -32,4 +32,4 @@ void fliprot_draw_bitmap(GContext *ctx, const GBitmap *src_bitmap, const GRect r
 FliprotFlags fliprot_for_angle(int32_t angle, int32_t hands_range_degrees);
 bool fliprot_is_flipped(FliprotFlags op_flags);
 size_t fliprot_hand_bitmap_index(
-    size_t num_hand_bitmaps, int32_t hand_bitmaps_range_deg, int32_t angle, FliprotFlags* fliprot_flags);
+    size_t num_hand_bitmaps, int32_t hand_bitmaps_range_deg, int32_t angle_per_bitmap, int32_t angle, FliprotFlags* fliprot_flags);

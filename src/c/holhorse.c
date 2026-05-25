@@ -282,19 +282,16 @@ static void start_complication(Complication* complication) {
  This watchface implementation; hands
 ******************************************************************************/
 
-#define NUM_HAND_BITMAPS (7)  // The number of unique hand bitmaps
-#define HAND_BITMAPS_RANGE_DEG (45)  // The range of degrees covered by our hand bitmaps
-
-static GBitmap* s_hour_hand_bitmaps[NUM_HAND_BITMAPS];
-
-
+#define NUM_HOUR_BITMAPS (7)  // The number of unique hour hand bitmaps
+#define HOUR_BITMAPS_RANGE_DEG (45)  // The range of degrees covered by our hour hand bitmaps
+static GBitmap* s_hour_hand_bitmaps[NUM_HOUR_BITMAPS];
 static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
     FliprotFlags fliprot_flags;
     const size_t bitmap_index = fliprot_hand_bitmap_index(
-        NUM_HAND_BITMAPS, HAND_BITMAPS_RANGE_DEG, angle, &fliprot_flags);
+        NUM_HOUR_BITMAPS, HOUR_BITMAPS_RANGE_DEG, DEG_TO_TRIGANGLE(15) / 2, angle, &fliprot_flags);
 
     // Select the target draw origin so that its centrepoint is in the centre of the screen.
-    static const GPoint bitmap_centre_points[NUM_HAND_BITMAPS] = {
+    static const GPoint bitmap_centre_points[NUM_HOUR_BITMAPS] = {
         {9, 79},  // 0
         {5, 77},  // 7.5
         {3, 74},  // 15
@@ -313,12 +310,33 @@ static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
     fliprot_draw_bitmap(ctx, bitmap, target_rect, fliprot_flags);
 }
 
+#define NUM_MINUTE_BITMAPS (8)  // The number of unique minute hand bitmaps
+#define MINUTE_BITMAPS_RANGE_DEG (45)  // The range of degrees covered by our minute hand bitmaps
+static GBitmap* s_min_hand_bitmaps[NUM_MINUTE_BITMAPS];
 static void draw_hand_min(Layer* layer, GContext* ctx, int32_t angle) {
-    // TODO
-    draw_hand_hour(layer, ctx, angle);
-    // const GRect bounds = layer_get_bounds(layer);
-    // const GPoint centre = grect_center_point(&bounds);
-    // const GRect mid_bounds = grect_crop(bounds, (PBL_DISPLAY_WIDTH / 6) - MUL_FRACT(PBL_DISPLAY_WIDTH / 6, 2, 5));
+    FliprotFlags fliprot_flags;
+    const size_t bitmap_index = fliprot_hand_bitmap_index(
+        NUM_MINUTE_BITMAPS, MINUTE_BITMAPS_RANGE_DEG, DEG_TO_TRIGANGLE(6), angle, &fliprot_flags);
+
+    // Select the target draw origin so that its centrepoint is in the centre of the screen.
+    static const GPoint bitmap_centre_points[NUM_MINUTE_BITMAPS] = {
+        {8, 122},  // 0
+        {4, 121},  // 6
+        {2, 119},  // 12
+        {1, 116},  // 18
+        {0, 112},  // 24
+        {0, 105},  // 30
+        {0, 99},  // 36
+        {0, 91},  // 42
+    };
+    const GRect layer_bounds = layer_get_bounds(layer);
+    const GPoint layer_centre = grect_center_point(&layer_bounds);
+    const GPoint bitmap_centre = bitmap_centre_points[bitmap_index];
+    const GBitmap* bitmap = s_min_hand_bitmaps[bitmap_index];
+    GRect target_rect = gbitmap_get_bounds(bitmap);
+    target_rect.origin = gpoint_sub(layer_centre, bitmap_centre);
+
+    fliprot_draw_bitmap(ctx, bitmap, target_rect, fliprot_flags);
 }
 
 static void draw_hand_sec(Layer* layer, GContext* ctx, int32_t angle) {
@@ -480,6 +498,14 @@ static void init_resources(Layer *root_layer) {
     s_hour_hand_bitmaps[4] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_30);
     s_hour_hand_bitmaps[5] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_37_5);
     s_hour_hand_bitmaps[6] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_45);
+    s_min_hand_bitmaps[0] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_0);
+    s_min_hand_bitmaps[1] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_1);
+    s_min_hand_bitmaps[2] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_2);
+    s_min_hand_bitmaps[3] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_3);
+    s_min_hand_bitmaps[4] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_4);
+    s_min_hand_bitmaps[5] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_5);
+    s_min_hand_bitmaps[6] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_6);
+    s_min_hand_bitmaps[7] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_7);
 
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
         complications[i].bitmap = gbitmap_create_blank(gbitmap_get_bounds(s_tick).size, gbitmap_get_format(s_tick));
@@ -497,6 +523,9 @@ static void destroy_resources(void) {
     }
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
         gbitmap_destroy(s_hour_hand_bitmaps[i]);
+    }
+    for (size_t i = 0; i < ARRAY_LEN(s_min_hand_bitmaps); i++) {
+        gbitmap_destroy(s_min_hand_bitmaps[i]);
     }
 }
 
