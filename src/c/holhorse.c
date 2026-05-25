@@ -554,7 +554,9 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 
     if (s_active_ticks_remaining == 0) {
         LOG("Schedule minute updates");
+#if !FAST_TIME_MS
         tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+#endif // !FAST_TIME_MS
     }
     if (s_active_ticks_remaining >= 0) {
         s_active_ticks_remaining -= 1;
@@ -565,7 +567,9 @@ static void activation_handler(void* context) {
     UNUSED(context);
     if (s_active_ticks_remaining == -1) {
         LOG("Schedule second updates");
+#if !FAST_TIME_MS
         tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
+#endif // !FAST_TIME_MS
     }
     s_active_ticks_remaining = ACTIVE_DURATION_S;
 }
@@ -573,6 +577,15 @@ static void activation_handler(void* context) {
 static void accel_tap_handler(AccelAxisType axis, int32_t direction) {
     activation_handler(NULL);
 }
+
+#if FAST_TIME_MS
+time_t s_fake_time = 0;
+static void fast_time_handler(void* context) {
+    s_fake_time += SECONDS_PER_MINUTE;
+    tick_handler(localtime(&s_fake_time), SECOND_UNIT | MINUTE_UNIT | (((s_fake_time % 60) == 0) ? HOUR_UNIT : 0));
+    app_timer_register(FAST_TIME_MS, fast_time_handler, NULL);
+}
+#endif // FAST_TIME_MS
 
 static void main_window_load(Window *window) {
     Layer* const root_layer = window_get_root_layer(window);
@@ -599,6 +612,11 @@ static void init(void) {
     const time_t now = time(NULL);
     tick_handler(localtime(&now),
         SECOND_UNIT | MINUTE_UNIT | HOUR_UNIT | DAY_UNIT | MONTH_UNIT | YEAR_UNIT);
+
+#if FAST_TIME_MS
+    s_fake_time = time(NULL);
+    app_timer_register(FAST_TIME_MS, fast_time_handler, NULL);
+#endif // FAST_TIME_MS
 }
 
 static void deinit(void) {

@@ -9,6 +9,8 @@
 #define DEMO 0
 #define DEBUG 0
 #define FORCE_BACKLIGHT_ON (DEMO || 0)
+#define FAST_TIME 0
+#define FAST_TIME_MS 0  // millisecond per minute, or 0 to disable
 #define FORCE_BLUETOOTH_DISCONNECT 0  // because emu-bt-connection takes forever
 #define DEBUG_DRAW_FACE 0  // plot parts of the face with pebble graphics (normally baked in to face.png)
 
