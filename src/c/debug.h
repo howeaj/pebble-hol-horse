@@ -6,10 +6,11 @@
 
 #include <pebble.h>
 
-#define DEMO false
+#define DEMO 0
 #define DEBUG 0
 #define FORCE_BACKLIGHT_ON (DEMO || 0)
-#define FORCE_BLUETOOTH_DISCONNECT false  // because emu-bt-connection takes forever
+#define FORCE_BLUETOOTH_DISCONNECT 0  // because emu-bt-connection takes forever
+#define DEBUG_DRAW_FACE 0  // plot parts of the face with pebble graphics (normally baked in to face.png)
 
 #if DEMO
     #define IF_DEMO_ELSE(is_demo, not_demo) (is_demo)

@@ -288,13 +288,6 @@ static void start_complication(Complication* complication) {
 static GBitmap* s_hour_hand_bitmaps[NUM_HAND_BITMAPS];
 
 
-static void draw_hand_min(Layer* layer, GContext* ctx, int32_t angle) {
-    // const GRect bounds = layer_get_bounds(layer);
-    // const GPoint centre = grect_center_point(&bounds);
-    // const GRect mid_bounds = grect_crop(bounds, (PBL_DISPLAY_WIDTH / 6) - MUL_FRACT(PBL_DISPLAY_WIDTH / 6, 2, 5));
-    // TODO
-}
-
 static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
     FliprotFlags fliprot_flags;
     const size_t bitmap_index = fliprot_hand_bitmap_index(
@@ -302,10 +295,10 @@ static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
 
     // Select the target draw origin so that its centrepoint is in the centre of the screen.
     static const GPoint bitmap_centre_points[NUM_HAND_BITMAPS] = {
-        {8, 79},  // 0
-        {4, 77},  // 7.5
-        {2, 74},  // 15
-        {1, 71},  // 22.5
+        {9, 79},  // 0
+        {5, 77},  // 7.5
+        {3, 74},  // 15
+        {2, 71},  // 22.5
         {0, 67},  // 30
         {0, 61},  // 37.5
         {0, 54},  // 45
@@ -318,6 +311,14 @@ static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
     target_rect.origin = gpoint_sub(layer_centre, bitmap_centre);
 
     fliprot_draw_bitmap(ctx, bitmap, target_rect, fliprot_flags);
+}
+
+static void draw_hand_min(Layer* layer, GContext* ctx, int32_t angle) {
+    // TODO
+    draw_hand_hour(layer, ctx, angle);
+    // const GRect bounds = layer_get_bounds(layer);
+    // const GPoint centre = grect_center_point(&bounds);
+    // const GRect mid_bounds = grect_crop(bounds, (PBL_DISPLAY_WIDTH / 6) - MUL_FRACT(PBL_DISPLAY_WIDTH / 6, 2, 5));
 }
 
 static void draw_hand_sec(Layer* layer, GContext* ctx, int32_t angle) {
@@ -387,7 +388,32 @@ static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
     s_is_full_redraw = true;
 }
 
-#define NUM_CLOCK_INDICES (60)
+#if DEBUG_DRAW_FACE
+// Draw parts of the face with pebble graphics commands.
+// Note this doesn't exactly draw the baked face.png because pebble's circle gfx is imprecise.
+static void draw_face(GRect bounds, GContext* ctx) {
+    // indices
+    graphics_context_set_fill_color(ctx, GColorBlack);
+    const GRect indices_bounds = grect_crop(bounds, PBL_DISPLAY_WIDTH / 6);
+    for (int32_t i = 0; i < MINUTES_PER_HOUR; i++) {
+        const int16_t angle = i * DEG_TO_TRIGANGLE(360 / MINUTES_PER_HOUR);
+        const GPoint point = gpoint_from_polar(indices_bounds, GOvalScaleModeFitCircle, angle);
+        graphics_fill_circle(ctx, point, (i % 5 == 0) ? 2 : 1);
+        // just single pixels
+        // graphics_fill_radial(ctx, (GRect){point, {(i % 5 == 0) ? 1 : 1, 0}},
+        //     GOvalScaleModeFillCircle, 5, 0, DEG_TO_TRIGANGLE(360));
+    }
+
+    // centre
+    const GPoint centre = grect_center_point(&bounds);
+    graphics_context_set_fill_color(ctx, GColorBlack);
+    graphics_context_set_stroke_color(ctx, GColorWhite);
+    graphics_fill_circle(ctx, centre, 11);
+    graphics_draw_circle(ctx, centre, 9);
+    graphics_draw_circle(ctx, centre, 3);
+}
+#endif // DEBUG_DRAW_FACE
+
 static void draw_root_layer(Layer* layer, GContext* ctx) {
     TRACE("draw_root_layer; s_num_seconds_shown = %d", s_num_seconds_shown);
     PROFILE_START();
@@ -397,31 +423,18 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
     graphics_context_set_compositing_mode(ctx, GCompOpSet); // enable transparency
     if (s_is_full_redraw)
     {
-        // TODO move this into the bitmap
+
+#if DEBUG_DRAW_FACE
         graphics_context_set_fill_color(ctx, BGCOLOR);
         graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+#endif // DEBUG_DRAW_FACE
 
-        // static background
+        // baked face bitmap
         graphics_draw_bitmap_in_rect(ctx, s_face_real, bounds);
 
-        // indices
-        // TODO move this into the bitmap
-        graphics_context_set_fill_color(ctx, GColorBlack);
-        const GRect indices_bounds = grect_crop(bounds, PBL_DISPLAY_WIDTH / 6);
-        for (int32_t i = 0; i < NUM_CLOCK_INDICES; i++) {
-            const int16_t angle = i * DEG_TO_TRIGANGLE(360 / NUM_CLOCK_INDICES);
-            const GPoint point = gpoint_from_polar(indices_bounds, GOvalScaleModeFitCircle, angle);
-            graphics_fill_circle(ctx, point, (i % 5 == 0) ? 2 : 1);
-        }
-
-        // centre
-        // TODO move this into the bitmap
-        const GPoint centre = grect_center_point(&bounds);
-        graphics_context_set_fill_color(ctx, GColorBlack);
-        graphics_context_set_stroke_color(ctx, GColorWhite);
-        graphics_fill_circle(ctx, centre, 11);
-        graphics_draw_circle(ctx, centre, 9);
-        graphics_draw_circle(ctx, centre, 3);
+#if DEBUG_DRAW_FACE
+        draw_face(bounds, ctx);
+#endif // DEBUG_DRAW_FACE
 
         // hands
         const HandAngles hand_angles = analogue_get_angles();
@@ -434,15 +447,17 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
         if (s_num_seconds_shown > 0) {
             draw_hand_sec(layer, ctx, hand_angles.sec);
         }
+
+        // draw all hand positions, for debugging
+        // for (int32_t i = 0; i < 60 ; i++) {
+        //     draw_hand_hour(layer, ctx, DEG_TO_TRIGANGLE(i * (360 / 60)));
+        // }
     }
 
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
         draw_complication(layer, ctx, &complications[i]);
     }
 
-    // static int i = 0;
-    // draw_hand_hour(layer, ctx, DEG_TO_TRIGANGLE(i * (360 / 60)));
-    // i = i + 1 % 60;
 
     s_is_full_redraw = false;
 
