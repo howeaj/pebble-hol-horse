@@ -67,7 +67,7 @@ static void mark_root_window_dirty(void);
  Analogue watch boilerplate
 ******************************************************************************/
 
-#define MPHI (12) // minutes per hour increment
+#define MPHI (15) // minutes per hour increment
 
 // Latest angles for clock hands, in TRIGANGLE units
 typedef struct HandAngles {
@@ -79,16 +79,15 @@ static HandAngles s_hand_angles;
 
 // Update hand angles from a tick handler
 static void analogue_update_angles(struct tm *tick_time, TimeUnits units_changed) {
+    // +1 round up to ensure the result is always > the precise angle
     if ((units_changed & HOUR_UNIT) || ((units_changed & MINUTE_UNIT) && ((tick_time->tm_min % MPHI) == 0))) {
-        s_hand_angles.hour = (
-            (((tick_time->tm_hour % 12) * (MINUTES_PER_HOUR / MPHI)) + (tick_time->tm_min / MPHI))
-            * (TRIG_MAX_ANGLE / ((MINUTES_PER_DAY / MPHI) / 2))
-        );
+        const int32_t hour_as_minutes = (((tick_time->tm_hour % 12) * MINUTES_PER_HOUR) + tick_time->tm_min);
+        s_hand_angles.hour = MUL_FRACT(hour_as_minutes, TRIG_MAX_ANGLE, 12 * MINUTES_PER_HOUR) + 1;
     }
     if (units_changed & MINUTE_UNIT) {
-        s_hand_angles.min = tick_time->tm_min * (TRIG_MAX_ANGLE / MINUTES_PER_HOUR);
+        s_hand_angles.min = MUL_FRACT(tick_time->tm_min, TRIG_MAX_ANGLE, MINUTES_PER_HOUR) + 1;
     }
-    s_hand_angles.sec = tick_time->tm_sec * (TRIG_MAX_ANGLE / SECONDS_PER_MINUTE);
+    s_hand_angles.sec = MUL_FRACT(tick_time->tm_sec, TRIG_MAX_ANGLE, SECONDS_PER_MINUTE) + 1;
 }
 
 // Return the latest hand angles

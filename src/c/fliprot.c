@@ -276,16 +276,15 @@ size_t fliprot_hand_bitmap_index(
     // Select which bitmap to use
     int32_t i;
     for (i = 1; i < (int32_t)num_hand_bitmaps; i++) {
-        // LOG("index %u threshold = %i %u", i, DEG_TO_TRIGANGLE(i * 15) / 4, TRIGANGLE_TO_DEG(DEG_TO_TRIGANGLE(i * 15) / 4));
         if ((angle % DEG_TO_TRIGANGLE(hand_bitmaps_range_deg)) <= (i * angle_per_bitmap)) {
             break;
         }
     }
     i--;
-    LOG("Draw angle %i %i index #%u", angle, TRIGANGLE_TO_DEG(angle), i);
     *fliprot_flags = fliprot_for_angle(angle, hand_bitmaps_range_deg);
     if (fliprot_is_flipped(*fliprot_flags)) {
         i = num_hand_bitmaps - i - 1;
     }
+    LOG("%i Draw angle %i (%i) = index #%u", TRIGANGLE_TO_DEG(angle_per_bitmap), angle, TRIGANGLE_TO_DEG(angle), i);
     return i;
 }
