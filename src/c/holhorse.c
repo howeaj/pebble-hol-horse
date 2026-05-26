@@ -277,6 +277,15 @@ static void start_complication(Complication* complication) {
  This watchface implementation; hands
 ******************************************************************************/
 
+/// Return a target GRect which places `point` of `bitmap` onto the centre of `layer`
+static GRect bitmap_point_on_centre(const GBitmap* bitmap, const GPoint point, const Layer* layer) {
+    const GRect layer_bounds = layer_get_bounds(layer);
+    const GPoint layer_centre = grect_center_point(&layer_bounds);
+    GRect target_rect = gbitmap_get_bounds(bitmap);
+    target_rect.origin = gpoint_sub(layer_centre, point);
+    return target_rect;
+}
+
 #define NUM_HOUR_BITMAPS (7)  // The number of unique hour hand bitmaps
 #define HOUR_BITMAPS_RANGE_DEG (45)  // The range of degrees covered by our hour hand bitmaps
 #define DEGREES_PER_HOUR_HAND DEG_TO_TRIGANGLE(7.5)  // the angle between each hour hand
@@ -291,7 +300,6 @@ static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
         &fliprot_flags
     );
 
-    // Select the target draw origin so that its centrepoint is in the centre of the screen.
     static const GPoint bitmap_centre_points[NUM_HOUR_BITMAPS] = {
         {9, 79},  // 0
         {5, 77},  // 7.5
@@ -301,13 +309,8 @@ static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
         {0, 61},  // 37.5
         {0, 54},  // 45
     };
-    const GRect layer_bounds = layer_get_bounds(layer);
-    const GPoint layer_centre = grect_center_point(&layer_bounds);
-    const GPoint bitmap_centre = bitmap_centre_points[bitmap_index];
     const GBitmap* bitmap = s_hour_hand_bitmaps[bitmap_index];
-    GRect target_rect = gbitmap_get_bounds(bitmap);
-    target_rect.origin = gpoint_sub(layer_centre, bitmap_centre);
-
+    const GRect target_rect = bitmap_point_on_centre(bitmap, bitmap_centre_points[bitmap_index], layer);
     fliprot_draw_bitmap(ctx, bitmap, target_rect, fliprot_flags);
 }
 
@@ -331,13 +334,8 @@ static void draw_hand_min(Layer* layer, GContext* ctx, int32_t angle) {
         {0, 99},  // 36
         {0, 91},  // 42
     };
-    const GRect layer_bounds = layer_get_bounds(layer);
-    const GPoint layer_centre = grect_center_point(&layer_bounds);
-    const GPoint bitmap_centre = bitmap_centre_points[bitmap_index];
     const GBitmap* bitmap = s_min_hand_bitmaps[bitmap_index];
-    GRect target_rect = gbitmap_get_bounds(bitmap);
-    target_rect.origin = gpoint_sub(layer_centre, bitmap_centre);
-
+    const GRect target_rect = bitmap_point_on_centre(bitmap, bitmap_centre_points[bitmap_index], layer);
     fliprot_draw_bitmap(ctx, bitmap, target_rect, fliprot_flags);
 }
 
