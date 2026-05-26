@@ -67,8 +67,6 @@ static void mark_root_window_dirty(void);
  Analogue watch boilerplate
 ******************************************************************************/
 
-#define MPHI (15) // minutes per hour increment
-
 // Latest angles for clock hands, in TRIGANGLE units
 typedef struct HandAngles {
     int32_t hour;
@@ -80,11 +78,9 @@ static HandAngles s_hand_angles;
 // Update hand angles from a tick handler
 static void analogue_update_angles(struct tm *tick_time, TimeUnits units_changed) {
     // +1 round up to ensure the result is always > the precise angle
-    if ((units_changed & HOUR_UNIT) || ((units_changed & MINUTE_UNIT) && ((tick_time->tm_min % MPHI) == 0))) {
+    if (units_changed & MINUTE_UNIT) {
         const int32_t hour_as_minutes = (((tick_time->tm_hour % 12) * MINUTES_PER_HOUR) + tick_time->tm_min);
         s_hand_angles.hour = MUL_FRACT(hour_as_minutes, TRIG_MAX_ANGLE, 12 * MINUTES_PER_HOUR) + 1;
-    }
-    if (units_changed & MINUTE_UNIT) {
         s_hand_angles.min = MUL_FRACT(tick_time->tm_min, TRIG_MAX_ANGLE, MINUTES_PER_HOUR) + 1;
     }
     s_hand_angles.sec = MUL_FRACT(tick_time->tm_sec, TRIG_MAX_ANGLE, SECONDS_PER_MINUTE) + 1;
@@ -283,11 +279,17 @@ static void start_complication(Complication* complication) {
 
 #define NUM_HOUR_BITMAPS (7)  // The number of unique hour hand bitmaps
 #define HOUR_BITMAPS_RANGE_DEG (45)  // The range of degrees covered by our hour hand bitmaps
+#define DEGREES_PER_HOUR_HAND DEG_TO_TRIGANGLE(7.5)  // the angle between each hour hand
 static GBitmap* s_hour_hand_bitmaps[NUM_HOUR_BITMAPS];
 static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
     FliprotFlags fliprot_flags;
     const size_t bitmap_index = fliprot_hand_bitmap_index(
-        NUM_HOUR_BITMAPS, HOUR_BITMAPS_RANGE_DEG, DEG_TO_TRIGANGLE(15) / 2, angle, &fliprot_flags);
+        NUM_HOUR_BITMAPS,
+        HOUR_BITMAPS_RANGE_DEG,
+        DEGREES_PER_HOUR_HAND,
+        angle + (DEGREES_PER_HOUR_HAND / 2),  // offset input angle to minimise final display error
+        &fliprot_flags
+    );
 
     // Select the target draw origin so that its centrepoint is in the centre of the screen.
     static const GPoint bitmap_centre_points[NUM_HOUR_BITMAPS] = {
@@ -311,11 +313,12 @@ static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
 
 #define NUM_MINUTE_BITMAPS (8)  // The number of unique minute hand bitmaps
 #define MINUTE_BITMAPS_RANGE_DEG (45)  // The range of degrees covered by our minute hand bitmaps
+#define DEGREES_PER_MINUTE_HAND DEG_TO_TRIGANGLE(360 / MINUTES_PER_HOUR)
 static GBitmap* s_min_hand_bitmaps[NUM_MINUTE_BITMAPS];
 static void draw_hand_min(Layer* layer, GContext* ctx, int32_t angle) {
     FliprotFlags fliprot_flags;
     const size_t bitmap_index = fliprot_hand_bitmap_index(
-        NUM_MINUTE_BITMAPS, MINUTE_BITMAPS_RANGE_DEG, DEG_TO_TRIGANGLE(6), angle, &fliprot_flags);
+        NUM_MINUTE_BITMAPS, MINUTE_BITMAPS_RANGE_DEG, DEGREES_PER_MINUTE_HAND, angle, &fliprot_flags);
 
     // Select the target draw origin so that its centrepoint is in the centre of the screen.
     static const GPoint bitmap_centre_points[NUM_MINUTE_BITMAPS] = {
