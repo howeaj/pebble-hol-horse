@@ -8,4 +8,5 @@
 #include "macros.h"
 
 size_t gbitmap_get_size(const GBitmap* bitmap);
-void dissolve(GBitmap *bitmap);
+void dissolve_bitmap(GBitmap *bitmap);
+void dissolve_rect(GContext* ctx, GRect rect, GColor color);

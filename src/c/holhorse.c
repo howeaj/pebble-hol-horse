@@ -1,9 +1,6 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
 /* TODO
-    - Fix background and hands alignment
-    - Minute hand
-    - Fix bad hour hand angles
     - Fix bad tick placements
     - 1 minute fast
     - If seconds are visible at noon, play shoot animation panels
@@ -159,12 +156,7 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
         return;
     }
 
-    if (!s_is_full_redraw) {  // erase the previous drawing
-        // TODO erase the exact shape, not bounding box
-        graphics_context_set_fill_color(ctx, BGCOLOR);
-        graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
-    }
-
+    const GRect prev_rect = complication->rect;
     complication->rect.origin.x -= complication->shake_offset.x;
     complication->rect.origin.y -= complication->shake_offset.y;
 
@@ -174,6 +166,13 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
         complication->state = (complication->state + 1) % ComplicationState_MAX;
         complication->animation_counter = FRAMES_PER_STATE[complication->state];
         complication->shake_offset = (GPoint) {0, 0};
+    }
+
+    // erase the previous drawing
+    // (unless we're Disappearing, which gradually erases it frame-by-frame)
+    if (!s_is_full_redraw && (complication->state != ComplicationState_Disappear)) {
+        graphics_context_set_fill_color(ctx, BGCOLOR);
+        graphics_fill_rect(ctx, prev_rect, 0, GCornerNone);
     }
 
     switch (complication->state) {
@@ -186,21 +185,28 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
             };
             complication->rect.origin.x += complication->shake_offset.x;
             complication->rect.origin.y += complication->shake_offset.y;
+            graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
             break;
-        case ComplicationState_Disappear:
-            dissolve(complication->bitmap);
-            // fall-through
         case ComplicationState_On:
             if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
                 complication->rect.origin.y -= 1;
             }
+            graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
+            break;
+        case ComplicationState_Disappear:
+            // stop redrawing the bitmap; "dissolve in" a background-coloured rect on top of it
+            if (s_is_full_redraw) {  // the first frame of this state is a full redraw to remove the second hand
+                // this also means if we hit a minute during the dissolve, they'll all reappear
+                // but that's impossible because it starts on a tick and only lasts 500ms
+                graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
+            }
+            dissolve_rect(ctx, complication->rect, BGCOLOR);
+            // TODO keep floating upwards (copy framebuffer rows upwards)
             break;
         default:
             ASSERT(false);
             break;
     }
-
-    graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
 }
 
 static int8_t num_active_complications(void) {
