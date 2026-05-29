@@ -283,8 +283,7 @@ static void start_complication(Complication* complication) {
     switch (complication->type) {
         case ComplicationType_Tick:
         default:
-            // TODO dont need to do this any more
-            memcpy(gbitmap_get_data(complication->bitmap), gbitmap_get_data(s_tick), gbitmap_get_size(s_tick));
+            complication->bitmap = s_tick;
             break;
     }
 
@@ -602,9 +601,7 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
 }
 
 static void set_bitmap_colors(void) {
-    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        gbitmap_set_color(complications[i].bitmap, 0, GColorPurple);
-    }
+    gbitmap_set_color(s_tick, 0, GColorPurple);
 }
 
 static void init_resources(Layer *root_layer) {
@@ -626,20 +623,12 @@ static void init_resources(Layer *root_layer) {
     s_min_hand_bitmaps[6] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_6);
     s_min_hand_bitmaps[7] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_7);
 
-    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        complications[i].bitmap = gbitmap_create_blank(gbitmap_get_bounds(s_tick).size, gbitmap_get_format(s_tick));
-        ASSERT(complications[i].bitmap != NULL);
-    }
-
     set_bitmap_colors();
 }
 
 static void destroy_resources(void) {
     gbitmap_destroy(s_face_real);
     gbitmap_destroy(s_tick);
-    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        gbitmap_destroy(complications[i].bitmap);
-    }
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
         gbitmap_destroy(s_hour_hand_bitmaps[i]);
     }
