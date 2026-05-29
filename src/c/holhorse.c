@@ -178,30 +178,27 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
         return;
     }
 
+    // Save the previous bounds for erasure, then undo any shake
     const GRect prev_rect = complication->rect;
     complication->rect.origin.x -= complication->shake_offset.x;
     complication->rect.origin.y -= complication->shake_offset.y;
 
     // Change state when counter expires
+    bool state_changed = false;
     complication->animation_counter--;
     if (complication->animation_counter <= 0) {
         complication->state = (complication->state + 1) % ComplicationState_MAX;
         complication->animation_counter = FRAMES_PER_STATE[complication->state];
         complication->shake_offset = (GPoint) {0, 0};
+        state_changed = true;
     }
 
-    // erase the previous drawing
-    // (unless we're Disappearing, which gradually erases it frame-by-frame)
-    if (!s_is_full_redraw && (complication->state != ComplicationState_Disappear)) {
-        graphics_context_set_fill_color(ctx, BGCOLOR);
-        graphics_fill_rect(ctx, prev_rect, 0, GCornerNone);
-    }
-#if DEBUG_SHOW_COMPL_RECTS
-    graphics_context_set_fill_color(ctx, GColorRed);
-#endif // DEBUG_SHOW_COMPL_RECTS
+    bool erase = !s_is_full_redraw;
+    bool draw = true;
 
     switch (complication->state) {
         case ComplicationState_Off:
+            draw = false;
             break;
         case ComplicationState_Appear:
             complication->shake_offset = (GPoint) {
@@ -209,38 +206,42 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
             };
             complication->rect.origin.x += complication->shake_offset.x;
             complication->rect.origin.y += complication->shake_offset.y;
-            #if DEBUG_SHOW_COMPL_RECTS
-                graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
-            #endif // DEBUG_SHOW_COMPL_RECTS
-            graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
             break;
         case ComplicationState_On:
             if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
-                #if !DEBUG_SHOW_COMPL_RECTS
-                    complication->rect.origin.y -= 1;
-                #endif // !DEBUG_SHOW_COMPL_RECTS
-            } // TODO else don't erase or draw anything!
-            #if DEBUG_SHOW_COMPL_RECTS
-                graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
-            #endif // DEBUG_SHOW_COMPL_RECTS
-            graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
+#if !DEBUG_SHOW_COMPL_RECTS
+                complication->rect.origin.y -= 1;
+#endif // !DEBUG_SHOW_COMPL_RECTS
+            } else {
+                erase = state_changed;
+                draw = state_changed || s_is_full_redraw;
+            }
             break;
         case ComplicationState_Disappear:
-            // stop redrawing the bitmap; "dissolve in" a background-coloured rect on top of it
-            if (s_is_full_redraw) {  // the first frame of this state is a full redraw to remove the second hand
-                // this also means if we hit a minute during the dissolve, they'll all reappear
-                // but that's impossible because it starts on a tick and only lasts 500ms
-                #if DEBUG_SHOW_COMPL_RECTS
-                    graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
-                #endif // DEBUG_SHOW_COMPL_RECTS
-                graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
-            }
+            // stop drawing the bitmap; "dissolve in" a background-coloured rect on top of it
             dissolve_rect(ctx, complication->rect, BGCOLOR);
+            erase = false;
+            // The first frame of this state is a full redraw to remove the second hand.
+            // This also means if we hit a minute during the dissolve, they'll all reappear
+            // but that's impossible because it starts on a tick and only lasts 500ms.
+            draw = s_is_full_redraw;
             // TODO keep floating upwards (copy framebuffer rows upwards)
             break;
         default:
             ASSERT(false);
             break;
+    }
+
+    if (erase) {
+        graphics_context_set_fill_color(ctx, BGCOLOR);
+        graphics_fill_rect(ctx, prev_rect, 0, GCornerNone);
+    }
+    if (draw) {
+#if DEBUG_SHOW_COMPL_RECTS
+        graphics_context_set_fill_color(ctx, GColorRed);
+        graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
+#endif // DEBUG_SHOW_COMPL_RECTS
+        graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
     }
 }
 
@@ -553,7 +554,7 @@ static void draw_face(GRect bounds, GContext* ctx) {
 
 static void draw_root_layer(Layer* layer, GContext* ctx) {
     // TRACE("draw_root_layer; s_num_seconds_shown = %d", s_num_seconds_shown);
-    // PROFILE_START();
+    PROFILE_START();
 
     const GRect bounds = layer_get_bounds(layer);
 
@@ -597,7 +598,7 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
 
     s_is_full_redraw = false;
 
-    // PROFILE_END("draw_root_layer");
+    PROFILE_END("draw_root_layer");
 }
 
 static void set_bitmap_colors(void) {
