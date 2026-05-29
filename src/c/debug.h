@@ -13,6 +13,7 @@
 #define FAST_TIME_MS 0  // millisecond per minute, or 0 to disable
 #define FORCE_BLUETOOTH_DISCONNECT 0  // because emu-bt-connection takes forever
 #define DEBUG_DRAW_FACE 0  // plot parts of the face with pebble graphics (normally baked in to face.png)
+#define DEBUG_SHOW_COMPL_RECTS 0  // draw the complication placement bounding boxes
 
 #if DEMO
     #define IF_DEMO_ELSE(is_demo, not_demo) (is_demo)

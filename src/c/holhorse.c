@@ -1,8 +1,10 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
 /* TODO
-    - Fix bad tick placements
+    - Test all tick placements
     - 1 minute fast
+    - Recolour hour hand
+    - Rounder minute hand bobble
     - If seconds are visible at noon, play shoot animation panels
     - Za Waldo stop time and invert colours for 5 seconds... but when to trigger?
         - bluetooth disconnect?
@@ -54,6 +56,11 @@ static GPoint point_from_angle(GPoint origin, int32_t angle, int32_t distance) {
         .x = (int16_t)((sin_lookup(angle) * distance) / TRIG_MAX_RATIO) + origin.x,
         .y = (int16_t)((-cos_lookup(angle) * distance) / TRIG_MAX_RATIO) + origin.y
     };
+}
+
+// Return the angle from a to b in TRIGANGLE units
+static int32_t angle_between_points(GPoint a, GPoint b) {
+    return atan2_lookup(b.x - a.x, b.y - a.y);  // TODO why are x and y reversed ???????
 }
 
 static bool should_show_seconds(void);
@@ -111,8 +118,6 @@ static bool s_is_full_redraw = true;
 
 #define NUM_COMPLICATIONS (3)
 #define COMPLICATION_RADIUS MUL_FRACT(PBL_DISPLAY_WIDTH, 1, 5) // distance from centre to place each complication
-#define COMPLICATION_ARC_ANGLE DEG_TO_TRIGANGLE(50)  // how many degrees does it cover (depends on COMPLICATION_RADIUS)
-#define HAND_ARC_ANGLE DEG_TO_TRIGANGLE((360 / MINUTES_PER_HOUR) * 3)  // how many degrees does each hand cover
 #define FLOAT_PIXELS_PER_SECOND (6)
 #define FLOAT_FRAMES_PER_PIXEL (FRAMERATE / FLOAT_PIXELS_PER_SECOND)
 
@@ -130,6 +135,7 @@ typedef enum ComplicationState {
 } ComplicationState;
 
 typedef struct Complication {
+    int32_t index;
     ComplicationType type;
     GBitmap* bitmap;
     GRect rect;
@@ -137,6 +143,9 @@ typedef struct Complication {
 
     ComplicationState state;
     int32_t animation_counter;
+
+    int32_t angle;
+    int32_t arc;
 } Complication;
 
 static AppTimer* s_animation_timer = NULL;
@@ -150,6 +159,19 @@ static const uint32_t FRAMES_PER_STATE[ComplicationState_MAX] = {
     FRAMERATE / 2   // ComplicationState_Disappear
 };
 
+static inline int16_t complication_index(const Complication* complication) {
+    return ((void*)complication - (void*)complications) / sizeof(Complication);
+}
+
+/// Return how many pixels upwards the complication will move in its lifetime
+static int16_t floatup_distance(const Complication* complication) {
+    const int16_t num_frames = (int16_t)(
+        FRAMES_PER_STATE[ComplicationState_On]
+        + FRAMES_PER_STATE[ComplicationState_Disappear]
+        - (complication_index(complication) * FRAMERATE)
+    );
+    return num_frames / FLOAT_FRAMES_PER_PIXEL;
+}
 
 static void draw_complication(Layer* layer, GContext* ctx, Complication* complication) {
     if (complication->state == ComplicationState_Off) {
@@ -174,10 +196,12 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
         graphics_context_set_fill_color(ctx, BGCOLOR);
         graphics_fill_rect(ctx, prev_rect, 0, GCornerNone);
     }
+#if DEBUG_SHOW_COMPL_RECTS
+    graphics_context_set_fill_color(ctx, GColorRed);
+#endif // DEBUG_SHOW_COMPL_RECTS
 
     switch (complication->state) {
         case ComplicationState_Off:
-            return;
             break;
         case ComplicationState_Appear:
             complication->shake_offset = (GPoint) {
@@ -185,12 +209,20 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
             };
             complication->rect.origin.x += complication->shake_offset.x;
             complication->rect.origin.y += complication->shake_offset.y;
+            #if DEBUG_SHOW_COMPL_RECTS
+                graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
+            #endif // DEBUG_SHOW_COMPL_RECTS
             graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
             break;
         case ComplicationState_On:
             if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
-                complication->rect.origin.y -= 1;
-            }
+                #if !DEBUG_SHOW_COMPL_RECTS
+                    complication->rect.origin.y -= 1;
+                #endif // !DEBUG_SHOW_COMPL_RECTS
+            } // TODO else don't erase or draw anything!
+            #if DEBUG_SHOW_COMPL_RECTS
+                graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
+            #endif // DEBUG_SHOW_COMPL_RECTS
             graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
             break;
         case ComplicationState_Disappear:
@@ -198,6 +230,9 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
             if (s_is_full_redraw) {  // the first frame of this state is a full redraw to remove the second hand
                 // this also means if we hit a minute during the dissolve, they'll all reappear
                 // but that's impossible because it starts on a tick and only lasts 500ms
+                #if DEBUG_SHOW_COMPL_RECTS
+                    graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
+                #endif // DEBUG_SHOW_COMPL_RECTS
                 graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
             }
             dissolve_rect(ctx, complication->rect, BGCOLOR);
@@ -248,30 +283,109 @@ static void start_complication(Complication* complication) {
     switch (complication->type) {
         case ComplicationType_Tick:
         default:
+            // TODO dont need to do this any more
             memcpy(gbitmap_get_data(complication->bitmap), gbitmap_get_data(s_tick), gbitmap_get_size(s_tick));
             break;
     }
 
-    // choose starting location
-    const HandAngles hand_angles = analogue_get_angles();
-    int32_t angle = DEG_TO_TRIGANGLE(45);
-    int8_t remaining_complications = num_active_complications() * 2;
-    do {
-        angle += (COMPLICATION_ARC_ANGLE / 2);
-    } while (
-           (ABSDIFF_WRAP(angle % TRIG_MAX_ANGLE, hand_angles.sec, TRIG_MAX_ANGLE) < ((HAND_ARC_ANGLE + COMPLICATION_ARC_ANGLE) / 2))
-        || (ABSDIFF_WRAP(angle % TRIG_MAX_ANGLE, hand_angles.min, TRIG_MAX_ANGLE) < ((HAND_ARC_ANGLE + COMPLICATION_ARC_ANGLE) / 2))
-        || (ABSDIFF_WRAP(angle % TRIG_MAX_ANGLE, hand_angles.hour, TRIG_MAX_ANGLE) < ((HAND_ARC_ANGLE + COMPLICATION_ARC_ANGLE) / 2))
-        || (remaining_complications-- > 0)
-    );
-    angle = angle % TRIG_MAX_ANGLE;
+    ///////// Choose starting location
+
+    // Calculate the total size of the complication including the distance it moves
+    // note this doesn't count the +-1 pixel shake on appear
     const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
-    const GPoint bitmap_centre = point_from_angle(display_centre, angle, COMPLICATION_RADIUS);
     complication->rect = gbitmap_get_bounds(complication->bitmap);
-    complication->rect.origin = (GPoint) {
-        bitmap_centre.x - complication->rect.size.w / 2,
-        bitmap_centre.y - complication->rect.size.h / 2
+    const int16_t index = complication_index(complication);
+    const int16_t floatup_dist = floatup_distance(complication);
+    const GSize total_size = {
+        complication->rect.size.w, complication->rect.size.h + floatup_dist
     };
+
+    // Start searching from the previous complication's angle
+    // TODO starting from 0 can waste some space; start from the hour hand? start from a random hand?
+    int32_t start_angle_deg = 0;
+    if (index > 0) {
+        const Complication* const other = &complications[index - 1];
+        start_angle_deg = TRIGANGLE_TO_DEG(other->angle + MIN_TO_TRIGANGLE(4)) % 360;
+    }
+
+    // Search for an angle with enough space to fit the complication for its whole life (total_size)
+    // TODO maybe searching "downwards" helps to pack floaters?
+    for (int32_t angle_deg = start_angle_deg; angle_deg < (start_angle_deg + 360); angle_deg += 6) {
+        const int32_t angle = DEG_TO_TRIGANGLE(angle_deg % 360);
+        // angle is the centrepoint of total_size; calculate its origin
+        const GPoint bitmap_centre = point_from_angle(display_centre, angle, COMPLICATION_RADIUS);
+        const GPoint origin = {
+            bitmap_centre.x - total_size.w / 2,
+            bitmap_centre.y - total_size.h / 2
+        };
+        // find the arc angle covered by the rect
+        const int32_t corner_angles[4] = {
+            angle_between_points(display_centre, origin),
+            angle_between_points(display_centre, (GPoint){origin.x, origin.y + total_size.h}),
+            angle_between_points(display_centre, (GPoint){origin.x + total_size.w, origin.y}),
+            angle_between_points(display_centre, (GPoint){origin.x + total_size.w, origin.y + total_size.h}),
+        };
+        // LOG("%d %d %d %d", TRIGANGLE_TO_DEG(comp_angles[0]), TRIGANGLE_TO_DEG(comp_angles[1]),
+        //                    TRIGANGLE_TO_DEG(comp_angles[2]), TRIGANGLE_TO_DEG(comp_angles[3]));
+        const int32_t corner_to_corner_arc_angle[6] = {
+            ABSDIFF_WRAP(corner_angles[0], corner_angles[1], TRIG_MAX_ANGLE),
+            ABSDIFF_WRAP(corner_angles[0], corner_angles[2], TRIG_MAX_ANGLE),
+            ABSDIFF_WRAP(corner_angles[0], corner_angles[3], TRIG_MAX_ANGLE),
+            ABSDIFF_WRAP(corner_angles[1], corner_angles[2], TRIG_MAX_ANGLE),
+            ABSDIFF_WRAP(corner_angles[1], corner_angles[3], TRIG_MAX_ANGLE),
+            ABSDIFF_WRAP(corner_angles[2], corner_angles[3], TRIG_MAX_ANGLE),
+        };
+        int32_t arc = 0;
+        for (size_t i = 0; i < ARRAY_LEN(corner_to_corner_arc_angle); i++) {
+            if (corner_to_corner_arc_angle[i] > arc) {
+                arc = corner_to_corner_arc_angle[i];
+            }
+        }
+        const int32_t arc_centre_angle = angle;  // TODO this is not true for rects
+
+        // Check for collision with clockhands
+        const HandAngles hand_angles = analogue_get_angles();
+        const int32_t second_centre = hand_angles.sec + (
+              (index == 0) ?  SEC_TO_TRIGANGLE(1)
+            : (index == 2) ? -SEC_TO_TRIGANGLE(1)
+            : 0
+        );
+        // TODO the hour centre is also different
+        // TODO if we're close to a minute, the hour/min hands are going to move...
+        if (
+            (ABSDIFF_WRAP(arc_centre_angle, second_centre,    TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(2.5) + arc) / 2))
+         || (ABSDIFF_WRAP(arc_centre_angle, hand_angles.min,  TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(3.5) + arc) / 2))
+         || (ABSDIFF_WRAP(arc_centre_angle, hand_angles.hour, TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(5.5) + arc) / 2))
+        ) {
+            continue;
+        }
+
+        // Check for collision with other complications
+        bool overlaps_other_complication = false;
+        // TODO get closer by taking into account the floating movement
+        for (int32_t i = 0; i < index; i++) {
+            const Complication* const other = &complications[i];
+            if (ABSDIFF_WRAP(arc_centre_angle, other->angle, TRIG_MAX_ANGLE) < ((other->arc + arc)/2 - DEG_TO_TRIGANGLE(15))) {
+                overlaps_other_complication = true;
+                break;
+            }
+        }
+        if (overlaps_other_complication) {
+            continue;
+        }
+
+        // Success!
+        complication->angle = arc_centre_angle;
+        complication->arc = arc;
+        complication->rect.origin = origin;
+        complication->rect.origin.y += floatup_dist;
+        break;
+    }
+
+#if DEBUG_SHOW_COMPL_RECTS
+    complication->rect.size.h += floatup_distance(complication);
+    complication->rect.origin.y -= floatup_distance(complication);
+#endif // DEBUG_SHOW_COMPL_RECTS
 
     complication->state = ComplicationState_Appear;
     complication->animation_counter = FRAMES_PER_STATE[complication->state];
@@ -393,7 +507,7 @@ static int8_t s_num_seconds_shown = 0;
 
 
 static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
-    TRACE("handle_tick; s_num_seconds_shown = %d", s_num_seconds_shown);
+    // TRACE("handle_tick; s_num_seconds_shown = %d", s_num_seconds_shown);
     analogue_update_angles(tick_time, units_changed);
 
     if (should_show_seconds()) {
@@ -439,8 +553,8 @@ static void draw_face(GRect bounds, GContext* ctx) {
 #endif // DEBUG_DRAW_FACE
 
 static void draw_root_layer(Layer* layer, GContext* ctx) {
-    TRACE("draw_root_layer; s_num_seconds_shown = %d", s_num_seconds_shown);
-    PROFILE_START();
+    // TRACE("draw_root_layer; s_num_seconds_shown = %d", s_num_seconds_shown);
+    // PROFILE_START();
 
     const GRect bounds = layer_get_bounds(layer);
 
@@ -482,10 +596,9 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
         draw_complication(layer, ctx, &complications[i]);
     }
 
-
     s_is_full_redraw = false;
 
-    PROFILE_END("draw_root_layer");
+    // PROFILE_END("draw_root_layer");
 }
 
 static void set_bitmap_colors(void) {
@@ -554,7 +667,7 @@ static void mark_root_window_dirty(void) {
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
-    TRACE("tick_handler; s_active_ticks_remaining = %d", s_active_ticks_remaining);
+    // TRACE("tick_handler; s_active_ticks_remaining = %d", s_active_ticks_remaining);
     handle_tick(tick_time, units_changed);
     mark_root_window_dirty();
 

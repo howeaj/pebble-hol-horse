@@ -285,6 +285,6 @@ size_t fliprot_hand_bitmap_index(
     if (fliprot_is_flipped(*fliprot_flags)) {
         i = num_hand_bitmaps - i - 1;
     }
-    LOG("%i Draw angle %i (%i) = index #%u", TRIGANGLE_TO_DEG(angle_per_bitmap), angle, TRIGANGLE_TO_DEG(angle), i);
+    // LOG("%i Draw angle %i (%i) = index #%u", TRIGANGLE_TO_DEG(angle_per_bitmap), angle, TRIGANGLE_TO_DEG(angle), i);
     return i;
 }

@@ -53,3 +53,7 @@
 // Constants
 #define TIME_MAX INT32_MAX  // max value of time_t
 #define MS_PER_S (1000)  // milliseconds per second
+
+// Conversions
+#define MIN_TO_TRIGANGLE(mins) DEG_TO_TRIGANGLE((360 / MINUTES_PER_HOUR) * mins)
+#define SEC_TO_TRIGANGLE(secs) MIN_TO_TRIGANGLE(secs)
