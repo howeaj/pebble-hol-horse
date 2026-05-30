@@ -180,6 +180,60 @@ static int16_t floatup_distance(const Complication* complication) {
     return num_frames / FLOAT_FRAMES_PER_PIXEL;
 }
 
+/** Update `complication`'s rect and apply any special effects according to its ComplicationState.
+    Return if the complication should be erased and/or drawn.
+*/
+static void apply_complication_state_effects(GContext* ctx, Complication* complication,
+                                             bool state_changed, bool* erase, bool* draw) {
+    switch (complication->state) {
+
+        case ComplicationState_Off:
+            *draw = false;
+            break;
+
+        case ComplicationState_Appear:
+            complication->shake_offset = (GPoint) { // TODO try nonrandom shake
+                (rand() % 3) - 1, (rand() % 3) - 1
+            };
+            complication->rect.origin.x += complication->shake_offset.x;
+            complication->rect.origin.y += complication->shake_offset.y;
+            break;
+
+        case ComplicationState_On:
+            if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
+#if !DEBUG_SHOW_COMPL_RECTS
+                complication->rect.origin.y -= 1;
+#endif // !DEBUG_SHOW_COMPL_RECTS
+            } else {
+                *erase = state_changed;
+                *draw = state_changed || s_is_full_redraw;
+            }
+            break;
+
+        case ComplicationState_Disappear:
+            // stop drawing the bitmap; "dissolve in" a background-coloured rect on top of it
+            dissolve_rect(ctx, complication->rect, BGCOLOR);
+            if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
+#if !DEBUG_SHOW_COMPL_RECTS
+                complication->rect.size.h += 1;
+                translate_rect(ctx, complication->rect, GVector(0, -1));
+                complication->rect.size.h -= 1;
+                complication->rect.origin.y -= 1;
+#endif // !DEBUG_SHOW_COMPL_RECTS
+            }
+            *erase = false;
+            // The first frame of this state is a full redraw to remove the second hand.
+            // This also means if we hit a minute during the dissolve, they'll all reappear
+            // but that's impossible because it starts on a tick and only lasts 500ms.
+            *draw = s_is_full_redraw;
+            break;
+
+        default:
+            ASSERT(false);
+            break;
+    }
+}
+
 static void draw_complication(Layer* layer, GContext* ctx, Complication* complication) {
     if (complication->state == ComplicationState_Off) {
         return;
@@ -202,49 +256,7 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
 
     bool erase = !s_is_full_redraw;
     bool draw = true;
-
-    switch (complication->state) {
-        case ComplicationState_Off:
-            draw = false;
-            break;
-        case ComplicationState_Appear:
-            complication->shake_offset = (GPoint) {
-                (rand() % 3) - 1, (rand() % 3) - 1
-            };
-            complication->rect.origin.x += complication->shake_offset.x;
-            complication->rect.origin.y += complication->shake_offset.y;
-            break;
-        case ComplicationState_On:
-            if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
-#if !DEBUG_SHOW_COMPL_RECTS
-                complication->rect.origin.y -= 1;
-#endif // !DEBUG_SHOW_COMPL_RECTS
-            } else {
-                erase = state_changed;
-                draw = state_changed || s_is_full_redraw;
-            }
-            break;
-        case ComplicationState_Disappear:
-            // stop drawing the bitmap; "dissolve in" a background-coloured rect on top of it
-            dissolve_rect(ctx, complication->rect, BGCOLOR);
-            if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
-#if !DEBUG_SHOW_COMPL_RECTS
-                complication->rect.size.h += 1;
-                translate_rect(ctx, complication->rect, GVector(0, -1));
-                complication->rect.size.h -= 1;
-                complication->rect.origin.y -= 1;
-#endif // !DEBUG_SHOW_COMPL_RECTS
-            }
-            erase = false;
-            // The first frame of this state is a full redraw to remove the second hand.
-            // This also means if we hit a minute during the dissolve, they'll all reappear
-            // but that's impossible because it starts on a tick and only lasts 500ms.
-            draw = s_is_full_redraw;
-            break;
-        default:
-            ASSERT(false);
-            break;
-    }
+    apply_complication_state_effects(ctx, complication, state_changed, &erase, &draw);
 
     if (erase) {
         graphics_context_set_fill_color(ctx, BGCOLOR);
