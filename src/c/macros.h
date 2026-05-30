@@ -28,6 +28,7 @@
 // Debugging
 #if DEBUG
     #define LOG(...) APP_LOG(APP_LOG_LEVEL_INFO, __VA_ARGS__)
+    #define LOG_ERR(...) APP_LOG(APP_LOG_LEVEL_ERROR, __VA_ARGS__)
     #define TRACE(...) APP_LOG(APP_LOG_LEVEL_DEBUG, __VA_ARGS__)
     #define ASSERT(condition) if (!(condition)) APP_LOG(APP_LOG_LEVEL_ERROR, \
         "ASSERTION FAILED AT %s:%d - "#condition, __FILE__, __LINE__)

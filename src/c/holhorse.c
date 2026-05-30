@@ -465,17 +465,19 @@ static void start_complication(Complication* complication) {
         complication->arc = arc;
         complication->rect.origin = origin;
         complication->rect.origin.y += floatup_dist;
-        break;
+
+        #if DEBUG_SHOW_COMPL_RECTS
+            complication->rect.size.h += floatup_distance(complication);
+            complication->rect.origin.y -= floatup_distance(complication);
+        #endif // DEBUG_SHOW_COMPL_RECTS
+
+        complication->state = ComplicationState_Appear;
+        complication->animation_counter = FRAMES_PER_STATE[complication->state];
+        complication->shake_offset = (GPoint) {0, 0};
+        return;
     }
 
-#if DEBUG_SHOW_COMPL_RECTS
-    complication->rect.size.h += floatup_distance(complication);
-    complication->rect.origin.y -= floatup_distance(complication);
-#endif // DEBUG_SHOW_COMPL_RECTS
-
-    complication->state = ComplicationState_Appear;
-    complication->animation_counter = FRAMES_PER_STATE[complication->state];
-    complication->shake_offset = (GPoint) {0, 0};
+    LOG_ERR("Failed to place complication");
 }
 
 static void configure_complications(void) {
