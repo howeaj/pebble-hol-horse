@@ -3,18 +3,13 @@
 /* TODO
     - Test all tick placements
     - 1 minute fast
-    - Recolour hour hand
-    - Rounder minute hand bobble
+    - Rounder minute hand bobble?
     - If seconds are visible at noon, play shoot animation panels
     - Za Waldo stop time and invert colours for 5 seconds... but when to trigger?
         - bluetooth disconnect?
         - on charger?
-    - complications (replace tick SFX, font: CCWildWords)
+    - complications
         - bluetooth
-        - battery
-        - day of week
-        - daydate
-        - month
         - steps
     - config:
         1 min fast
@@ -110,7 +105,8 @@ static bool analogue_is_vertical(int32_t angle) {
 ******************************************************************************/
 
 static bool s_is_full_redraw = true;
-
+static GFont s_font_letters;
+static GFont s_font_numbers;
 
 #define FRAMERATE (30)
 #define MS_PER_FRAME (MS_PER_S / FRAMERATE)
@@ -123,6 +119,11 @@ static bool s_is_full_redraw = true;
 
 typedef enum ComplicationType {
     ComplicationType_Tick = 0,
+    ComplicationType_Battery,
+    ComplicationType_DayName,
+    ComplicationType_DayNum,
+    ComplicationType_MonthName,
+    ComplicationType_MonthNum,
 } ComplicationType;
 
 typedef enum ComplicationState {
@@ -135,15 +136,16 @@ typedef enum ComplicationState {
 } ComplicationState;
 
 typedef struct Complication {
-    int32_t index;
     ComplicationType type;
     GBitmap* bitmap;
-    GRect rect;
-    GPoint shake_offset;
+    char text[4];
+    GFont font;
+    GColor color;
 
     ComplicationState state;
+    GRect rect;
+    GPoint shake_offset;
     int32_t animation_counter;
-
     int32_t angle;
     int32_t arc;
 } Complication;
@@ -161,6 +163,10 @@ static const uint32_t FRAMES_PER_STATE[ComplicationState_MAX] = {
 
 static inline int16_t complication_index(const Complication* complication) {
     return ((void*)complication - (void*)complications) / sizeof(Complication);
+}
+
+static inline bool complication_is_text(const Complication* complication) {
+    return complication->type != ComplicationType_Tick;
 }
 
 /// Return how many pixels upwards the complication will move in its lifetime
@@ -241,7 +247,13 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
         graphics_context_set_fill_color(ctx, GColorRed);
         graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
 #endif // DEBUG_SHOW_COMPL_RECTS
-        graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
+        if (complication_is_text(complication)) {
+            graphics_context_set_text_color(ctx, complication->color);
+            graphics_draw_text(ctx, complication->text, complication->font, complication->rect,
+                GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+        } else {
+            graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
+        }
     }
 }
 
@@ -276,24 +288,66 @@ static void stop_complications(void) {
     complications[NUM_COMPLICATIONS - 1].shake_offset = (GPoint) {0, 0};
 }
 
-static void start_complication(Complication* complication) {
-    ASSERT(complication != NULL);
-
-    // set the complication's image
-    // this assumes all complication bitmaps are the same size
+static void update_complication_value(Complication* complication) {
+    const time_t now = time(NULL);
     switch (complication->type) {
+        case ComplicationType_Battery:
+            const int len = snprintf(complication->text, 4, "%u%%", MIN(99, battery_state_service_peek().charge_percent));
+            ASSERT((len == 1) || (len == 2));  // suppress GCC -Wformat-truncation
+            break;
+        case ComplicationType_DayName:
+            strftime(complication->text, 4, "%a", localtime(&now));
+            break;
+        case ComplicationType_DayNum:
+            strftime(complication->text, 4, "%d", localtime(&now));
+            // TODO add small st/nd/rd/th second text draw
+            break;
+        case ComplicationType_MonthName:
+            strftime(complication->text, 4, "%b", localtime(&now));
+            break;
+        case ComplicationType_MonthNum:
+            strftime(complication->text, 4, "%m", localtime(&now));
+            break;
         case ComplicationType_Tick:
-        default:
             complication->bitmap = s_tick;
             break;
+        default:
+            ASSERT(false);
+            break;
     }
+}
+
+static void update_complication_size(Complication* complication) {
+    switch (complication->type) {
+        case ComplicationType_Battery:
+        case ComplicationType_DayNum:
+        case ComplicationType_MonthNum:
+            complication->font = s_font_numbers;
+            complication->rect.size = (GSize){50, 25};
+            break;
+        case ComplicationType_DayName:
+        case ComplicationType_MonthName:
+            complication->font = s_font_letters;
+            complication->rect.size = (GSize){53, 22};
+            break;
+        case ComplicationType_Tick:
+            complication->rect = gbitmap_get_bounds(complication->bitmap);
+            break;
+        default:
+            ASSERT(false);
+            break;
+    }
+}
+
+static void start_complication(Complication* complication) {
+
+    update_complication_value(complication);
+    update_complication_size(complication);
 
     ///////// Choose starting location
-
     // Calculate the total size of the complication including the distance it moves
     // note this doesn't count the +-1 pixel shake on appear
     const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
-    complication->rect = gbitmap_get_bounds(complication->bitmap);
     const int16_t index = complication_index(complication);
     const int16_t floatup_dist = floatup_distance(complication);
     const GSize total_size = {
@@ -390,6 +444,15 @@ static void start_complication(Complication* complication) {
     complication->state = ComplicationState_Appear;
     complication->animation_counter = FRAMES_PER_STATE[complication->state];
     complication->shake_offset = (GPoint) {0, 0};
+}
+
+static void configure_complications(void) {
+    complications[0].type = ComplicationType_DayName;
+    complications[0].color = GColorPurple;
+    complications[1].type = ComplicationType_DayNum;
+    complications[1].color = GColorPurple;
+    complications[2].type = ComplicationType_MonthName;
+    complications[2].color = GColorPurple;
 }
 
 
@@ -606,6 +669,8 @@ static void set_bitmap_colors(void) {
 }
 
 static void init_resources(Layer *root_layer) {
+    s_font_letters = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_COMIC_LETTERS_22));
+    s_font_numbers = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_COMIC_NUMBERS_22));
     s_face_real = gbitmap_create_with_resource(RESOURCE_ID_FACE_REAL);
     s_tick = gbitmap_create_with_resource(RESOURCE_ID_TICK);
     s_hour_hand_bitmaps[0] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_0);
@@ -625,9 +690,13 @@ static void init_resources(Layer *root_layer) {
     s_min_hand_bitmaps[7] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_7);
 
     set_bitmap_colors();
+
+    configure_complications(); // TODO move to handle_config
 }
 
 static void destroy_resources(void) {
+    fonts_unload_custom_font(s_font_letters);
+    fonts_unload_custom_font(s_font_numbers);
     gbitmap_destroy(s_face_real);
     gbitmap_destroy(s_tick);
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {

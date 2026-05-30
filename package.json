@@ -21,8 +21,10 @@
     ],
     "resources": {
       "media": [
-        {"type": "bitmap", "file": "app_icon.png",  "name": "APP_ICON", "menuIcon": true },
-        {"type": "bitmap", "file": "face_real.png", "name": "FACE_REAL" },
+        {"type": "font", "file": "komika.hand-bold-italic.ttf", "name": "FONT_COMIC_LETTERS_22", "characterRegex": "[A-Za-z]"},
+        {"type": "font", "file": "komika.hand-bold-italic.ttf", "name": "FONT_COMIC_NUMBERS_22", "characterRegex": "[0-9%]"},
+        {"type": "bitmap", "file": "app_icon.png",  "name": "APP_ICON", "menuIcon": true},
+        {"type": "bitmap", "file": "face_real.png", "name": "FACE_REAL"},
         {"type": "bitmap", "file": "tick.png",      "name": "TICK"},
         {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_0.png",    "name": "HAND_HOUR_0"},
         {"type": "bitmap", "memoryFormat": "8Bit", "file": "hand_hour_7-5.png",  "name": "HAND_HOUR_7_5"},
