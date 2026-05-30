@@ -25,6 +25,7 @@
 #include "dissolve.h"
 #include "fliprot.h"
 #include "macros.h"
+#include "translate.h"
 
 #if DEBUG
 // Return milliseconds since the epoch
@@ -226,12 +227,19 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
         case ComplicationState_Disappear:
             // stop drawing the bitmap; "dissolve in" a background-coloured rect on top of it
             dissolve_rect(ctx, complication->rect, BGCOLOR);
+            if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
+#if !DEBUG_SHOW_COMPL_RECTS
+                complication->rect.size.h += 1;
+                translate_rect(ctx, complication->rect, GVector(0, -1));
+                complication->rect.size.h -= 1;
+                complication->rect.origin.y -= 1;
+#endif // !DEBUG_SHOW_COMPL_RECTS
+            }
             erase = false;
             // The first frame of this state is a full redraw to remove the second hand.
             // This also means if we hit a minute during the dissolve, they'll all reappear
             // but that's impossible because it starts on a tick and only lasts 500ms.
             draw = s_is_full_redraw;
-            // TODO keep floating upwards (copy framebuffer rows upwards)
             break;
         default:
             ASSERT(false);
