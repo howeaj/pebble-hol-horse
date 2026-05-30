@@ -234,7 +234,20 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
     }
 }
 
+// Perform the graphics draw operation to draw `complication` in `rect` with the given `color`
+static void graphics_draw_complication(GContext* ctx, Complication* complication, GRect rect, GColor color) {
+    if (complication_is_text(complication)) {
+        graphics_context_set_text_color(ctx, color);
+        graphics_draw_text(ctx, complication->text, complication->font, rect,
+            GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+    } else {
+        gbitmap_set_color(complication->bitmap, 0, color);
+        graphics_draw_bitmap_in_rect(ctx, complication->bitmap, rect);
+    }
+}
+
 static void draw_complication(Layer* layer, GContext* ctx, Complication* complication) {
+    UNUSED(layer);
     if (complication->state == ComplicationState_Off) {
         return;
     }
@@ -259,21 +272,20 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
     apply_complication_state_effects(ctx, complication, state_changed, &erase, &draw);
 
     if (erase) {
-        graphics_context_set_fill_color(ctx, BGCOLOR);
-        graphics_fill_rect(ctx, prev_rect, 0, GCornerNone);
+        // If our placements were perfect it would be fine to erase the whole rect, but they aren't...
+        // graphics_context_set_fill_color(ctx, BGCOLOR);
+        // graphics_fill_rect(ctx, prev_rect, 0, GCornerNone);
+
+        // ...so instead only erase exactly what we drew
+        graphics_draw_complication(ctx, complication, prev_rect, BGCOLOR);
     }
+
     if (draw) {
 #if DEBUG_SHOW_COMPL_RECTS
         graphics_context_set_fill_color(ctx, GColorRed);
         graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
 #endif // DEBUG_SHOW_COMPL_RECTS
-        if (complication_is_text(complication)) {
-            graphics_context_set_text_color(ctx, complication->color);
-            graphics_draw_text(ctx, complication->text, complication->font, complication->rect,
-                GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-        } else {
-            graphics_draw_bitmap_in_rect(ctx, complication->bitmap, complication->rect);
-        }
+        graphics_draw_complication(ctx, complication, complication->rect, complication->color);
     }
 }
 
@@ -685,7 +697,6 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
 }
 
 static void set_bitmap_colors(void) {
-    gbitmap_set_color(s_tick, 0, GColorPurple);
 }
 
 static void init_resources(Layer *root_layer) {
@@ -709,9 +720,9 @@ static void init_resources(Layer *root_layer) {
     s_min_hand_bitmaps[6] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_6);
     s_min_hand_bitmaps[7] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_7);
 
+    // TODO move to handle_config
     set_bitmap_colors();
-
-    configure_complications(); // TODO move to handle_config
+    configure_complications();
 }
 
 static void destroy_resources(void) {
