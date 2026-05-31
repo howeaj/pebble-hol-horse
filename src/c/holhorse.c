@@ -141,7 +141,8 @@ typedef struct Complication {
     GBitmap* bitmap;
     char text[4];
     GFont font;
-    GColor color;
+    GColor color1;  // main
+    GColor color2;  // shadow
 
     ComplicationState state;
     GRect rect;
@@ -180,6 +181,17 @@ static int16_t floatup_distance(const Complication* complication) {
     return num_frames / FLOAT_FRAMES_PER_PIXEL;
 }
 
+// Pixel offset of the complications' shadow
+#define SHAD_OFF (2)
+
+static inline GRect comp_shadow_rect(GRect rect) {
+    return GRect(rect.origin.x - SHAD_OFF, rect.origin.y + SHAD_OFF, rect.size.w, rect.size.h);
+}
+
+static inline GRect comp_rect_with_shadow(GRect rect) {
+    return GRect(rect.origin.x - SHAD_OFF, rect.origin.y, rect.size.w + SHAD_OFF, rect.size.h + SHAD_OFF);
+}
+
 /** Update `complication`'s rect and apply any special effects according to its ComplicationState.
     Return if the complication should be erased and/or drawn.
 */
@@ -212,11 +224,11 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
 
         case ComplicationState_Disappear:
             // stop drawing the bitmap; "dissolve in" a background-coloured rect on top of it
-            dissolve_rect(ctx, complication->rect, BGCOLOR);
+            dissolve_rect(ctx, comp_rect_with_shadow(complication->rect), BGCOLOR);
             if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
 #if !DEBUG_SHOW_COMPL_RECTS
                 complication->rect.size.h += 1;
-                translate_rect(ctx, complication->rect, GVector(0, -1));
+                translate_rect(ctx, comp_rect_with_shadow(complication->rect), GVector(0, -1));
                 complication->rect.size.h -= 1;
                 complication->rect.origin.y -= 1;
 #endif // !DEBUG_SHOW_COMPL_RECTS
@@ -234,14 +246,20 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
     }
 }
 
-// Perform the graphics draw operation to draw `complication` in `rect` with the given `color`
-static void graphics_draw_complication(GContext* ctx, Complication* complication, GRect rect, GColor color) {
+// Perform the graphics draw operation to draw `complication` in `rect` with the given `color`s
+static void graphics_draw_complication(GContext* ctx, Complication* complication,
+                                       GRect rect, GColor color1, GColor color2) {
     if (complication_is_text(complication)) {
-        graphics_context_set_text_color(ctx, color);
+        graphics_context_set_text_color(ctx, color2);
+        graphics_draw_text(ctx, complication->text, complication->font, comp_shadow_rect(rect),
+            GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+        graphics_context_set_text_color(ctx, color1);
         graphics_draw_text(ctx, complication->text, complication->font, rect,
             GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
     } else {
-        gbitmap_set_color(complication->bitmap, 0, color);
+        gbitmap_set_color(complication->bitmap, 0, color2);
+        graphics_draw_bitmap_in_rect(ctx, complication->bitmap, comp_shadow_rect(rect));
+        gbitmap_set_color(complication->bitmap, 0, color1);
         graphics_draw_bitmap_in_rect(ctx, complication->bitmap, rect);
     }
 }
@@ -277,7 +295,7 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
         // graphics_fill_rect(ctx, prev_rect, 0, GCornerNone);
 
         // ...so instead only erase exactly what we drew
-        graphics_draw_complication(ctx, complication, prev_rect, BGCOLOR);
+        graphics_draw_complication(ctx, complication, prev_rect, BGCOLOR, BGCOLOR);
     }
 
     if (draw) {
@@ -285,7 +303,7 @@ static void draw_complication(Layer* layer, GContext* ctx, Complication* complic
         graphics_context_set_fill_color(ctx, GColorRed);
         graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
 #endif // DEBUG_SHOW_COMPL_RECTS
-        graphics_draw_complication(ctx, complication, complication->rect, complication->color);
+        graphics_draw_complication(ctx, complication, complication->rect, complication->color1, complication->color2);
     }
 }
 
@@ -382,8 +400,9 @@ static void start_complication(Complication* complication) {
     const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
     const int16_t index = complication_index(complication);
     const int16_t floatup_dist = floatup_distance(complication);
+    const GRect full_rect = comp_rect_with_shadow(complication->rect);
     const GSize total_size = {
-        complication->rect.size.w, complication->rect.size.h + floatup_dist
+        full_rect.size.w, full_rect.size.h + floatup_dist
     };
 
     // Start searching from the previous complication's angle
@@ -481,12 +500,15 @@ static void start_complication(Complication* complication) {
 }
 
 static void configure_complications(void) {
-    complications[0].type = ComplicationType_DayName;
-    complications[0].color = GColorPurple;
+    complications[0].type = ComplicationType_Tick;
+    complications[0].color1 = GColorPurple;
+    complications[0].color2 = GColorGreen;
     complications[1].type = ComplicationType_DayNum;
-    complications[1].color = GColorPurple;
+    complications[1].color1 = GColorPurple;
+    complications[1].color2 = GColorGreen;
     complications[2].type = ComplicationType_MonthName;
-    complications[2].color = GColorPurple;
+    complications[2].color1 = GColorPurple;
+    complications[2].color2 = GColorGreen;
 }
 
 
