@@ -40,6 +40,7 @@
 
 #else // !DEBUG
     #define LOG(...)
+    #define LOG_ERR(...)
     #define TRACE(...)
     #define ASSERT(condition) ((void)(condition))
     #define PROFILE_START()

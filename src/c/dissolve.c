@@ -10,6 +10,25 @@
 #include "macros.h"
 
 
+
+// todo don't dirty whole framebuffer
+
+// copy GETAFIX value
+// #define FRAMEBUFFER_SIZE_BYTES (PBL_DISPLAY_WIDTH * PBL_DISPLAY_HEIGHT)
+
+// typedef struct FrameBuffer {
+//   uint8_t buffer[FRAMEBUFFER_SIZE_BYTES];
+//   GSize size; //<! Active size of the framebuffer
+//   GRect dirty_rect; //<! Smallest rect covering all dirty pixels.
+//   bool is_dirty;
+// } FrameBuffer;
+
+// static void mark_framebuffer_dirty(FrameBuffer* framebuffer) {
+//     framebuffer->is_dirty = false;
+//     framebuffer->dirty_rect = (GRect){{0, 0}, {0, 0}};
+// }
+
+
 /******************************************************************************
  Public functions
 ******************************************************************************/

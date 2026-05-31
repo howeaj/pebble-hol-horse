@@ -256,7 +256,8 @@ FliprotFlags fliprot_for_angle(int32_t angle, int32_t original_range_degrees) {
         flags = OpFlag_None;
         break;
     default:
-        ASSERT(false);
+        ASSERT(false);  // TODO this triggered at 00:59
+        LOG_ERR("%d", angle);
         flags = OpFlag_None;
         break;
     }
