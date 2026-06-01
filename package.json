@@ -23,6 +23,7 @@
       "media": [
         {"type": "font", "file": "komika.hand-bold-italic.ttf", "name": "FONT_COMIC_LETTERS_22", "characterRegex": "[A-Za-z]"},
         {"type": "font", "file": "komika.hand-bold-italic.ttf", "name": "FONT_COMIC_NUMBERS_22", "characterRegex": "[0-9%]"},
+        {"type": "font", "file": "komika.hand-bold-italic.ttf", "name": "FONT_COMIC_SUFFIX_10", "characterRegex": "[dhnrst]"},
         {"type": "bitmap", "file": "app_icon.png",  "name": "APP_ICON", "menuIcon": true},
         {"type": "bitmap", "file": "face_real.png", "name": "FACE_REAL"},
         {"type": "bitmap", "file": "tick.png",      "name": "TICK"},

@@ -43,6 +43,7 @@ typedef struct Complication {
     ComplicationType type;
     GBitmap* bitmap;
     char text[4];
+    uint32_t value;
     GFont font;
     GColor color1;  // main
     GColor color2;  // shadow
@@ -57,11 +58,12 @@ typedef struct Complication {
 
 static GFont s_font_letters;
 static GFont s_font_numbers;
+static GFont s_font_suffix;
 static AppTimer* s_animation_timer = NULL;
 static GBitmap* s_tick;
 static Complication complications[NUM_COMPLICATIONS];
 
-static const uint32_t FRAMES_PER_STATE[ComplicationState_MAX] = {
+static const uint32_t s_frames_per_state[ComplicationState_MAX] = {
     0,              // ComplicationState_Off
     FRAMERATE / 4,  // ComplicationState_Appear
     MUL_FRACT(FRAMERATE, 11, 4),  // ComplicationState_On
@@ -75,21 +77,60 @@ static inline bool complication_is_text(const Complication* complication) {
 /// Return how many pixels upwards the complication will move in its lifetime
 static int16_t floatup_distance(uint32_t index) {
     const int16_t num_frames = (int16_t)(
-        FRAMES_PER_STATE[ComplicationState_On]
-        + FRAMES_PER_STATE[ComplicationState_Disappear]
+        s_frames_per_state[ComplicationState_On]
+        + s_frames_per_state[ComplicationState_Disappear]
         - (index * FRAMERATE)
     );
     return num_frames / FLOAT_FRAMES_PER_PIXEL;
 }
 
-// Pixel offset of the complications' shadow
-#define SHAD_OFF (2)
+// starting offset of the ordinal suffix to leave a 1px gap before it
+const int8_t s_ordinal_suffix_offset[31] = {
+    4,   // 1
+    14,  // 2
+    14,  // 3
+    18,  // 4
+    15,  // 5
+    16,  // 6
+    7,   // 7
+    17,  // 8
+    14,  // 9
+    24,  // 10
+    12,  // 11
+    21,  // 12
+    23,  // 13
+    25,  // 14
+    22,  // 15
+    23,  // 16
+    14,  // 17
+    24,  // 18
+    21,  // 19
+    34,  // 20
+    21,  // 21
+    33,  // 22
+    32,  // 23
+    35,  // 24
+    32,  // 25
+    33,  // 26
+    24,  // 27
+    34,  // 28
+    31,  // 29
+    34,  // 30
+    21,  // 31
+};
 
-static inline GRect comp_shadow_rect(GRect rect) {
-    return GRect(rect.origin.x - SHAD_OFF, rect.origin.y + SHAD_OFF, rect.size.w, rect.size.h);
+static inline GRect suffix_rect(GRect rect, int32_t value) {
+    ASSERT((size_t)value <= ARRAY_LEN(s_ordinal_suffix_offset));
+    const int16_t dx = s_ordinal_suffix_offset[value - 1];
+    const int16_t h = 10;
+    return GRect(rect.origin.x + dx, rect.origin.y + (rect.size.h - h), rect.size.w - dx, h);
 }
 
-static inline GRect comp_rect_with_shadow(GRect rect) {
+#define SHAD_OFF (2)// Pixel offset of the complications' shadow
+static inline GRect shadow_rect(GRect rect) {
+    return GRect(rect.origin.x - SHAD_OFF, rect.origin.y + SHAD_OFF, rect.size.w, rect.size.h);
+}
+static inline GRect rect_with_shadow(GRect rect) {
     return GRect(rect.origin.x - SHAD_OFF, rect.origin.y, rect.size.w + SHAD_OFF, rect.size.h + SHAD_OFF);
 }
 
@@ -125,11 +166,11 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
 
         case ComplicationState_Disappear:
             // stop drawing the bitmap; "dissolve in" a background-coloured rect on top of it
-            dissolve_rect(ctx, comp_rect_with_shadow(complication->rect), BGCOLOR);
+            dissolve_rect(ctx, rect_with_shadow(complication->rect), BGCOLOR);
             if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
 #if !DEBUG_SHOW_COMPL_RECTS
                 complication->rect.size.h += 1;
-                translate_rect(ctx, comp_rect_with_shadow(complication->rect), GVector(0, -1));
+                translate_rect(ctx, rect_with_shadow(complication->rect), GVector(0, -1));
                 complication->rect.size.h -= 1;
                 complication->rect.origin.y -= 1;
 #endif // !DEBUG_SHOW_COMPL_RECTS
@@ -147,19 +188,60 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
     }
 }
 
+/// Return the ordinal suffix for a number.
+/// Only correct for values <= 110
+static const char* ordinal_suffix(uint32_t value) {
+    if (WITHIN(value, 11, 13)) {
+        value = 0;
+    }
+    switch (value % 10) {
+        case 1:
+            return "st";
+            break;
+        case 2:
+            return "nd";
+            break;
+        case 3:
+            return "rd";
+            break;
+        default:
+            return "th";
+            break;
+    }
+}
+
+static void draw_text_with_shadow(GContext* ctx, const char* text, GFont font,
+                                  GRect rect, GTextOverflowMode overflow_mode, GTextAlignment alignment,
+                                  GColor color_text, GColor color_shadow) {
+    graphics_context_set_text_color(ctx, color_shadow);
+    graphics_draw_text(ctx, text, font, shadow_rect(rect), GTextOverflowModeWordWrap, alignment, NULL);
+    graphics_context_set_text_color(ctx, color_text);
+    graphics_draw_text(ctx, text, font, rect, GTextOverflowModeWordWrap, alignment, NULL);
+}
+
 // Perform the graphics draw operation to draw `complication` in `rect` with the given `color`s
 static void graphics_draw_complication(GContext* ctx, Complication* complication,
                                        GRect rect, GColor color1, GColor color2) {
     if (complication_is_text(complication)) {
-        graphics_context_set_text_color(ctx, color2);
-        graphics_draw_text(ctx, complication->text, complication->font, comp_shadow_rect(rect),
-            GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-        graphics_context_set_text_color(ctx, color1);
-        graphics_draw_text(ctx, complication->text, complication->font, rect,
-            GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+        const GTextAlignment alignment =
+            (complication->type == ComplicationType_DayNum) ? GTextAlignmentLeft : GTextAlignmentCenter;
+        if ((alignment == GTextAlignmentLeft) && (complication->text[1] == '\0')) {  // manually ~centre text
+            rect.origin.x += 20;
+            rect.size.w -= 20;
+        }
+
+        draw_text_with_shadow(ctx, complication->text, complication->font, rect,
+            GTextOverflowModeWordWrap, alignment, color1, color2);
+
+        // ordinal suffix
+        if (complication->type == ComplicationType_DayNum) {
+            draw_text_with_shadow(ctx, ordinal_suffix(complication->value), s_font_suffix,
+                suffix_rect(rect, complication->value),
+                GTextOverflowModeWordWrap, GTextAlignmentLeft, color1, color2);
+        }
     } else {
         gbitmap_set_color(complication->bitmap, 0, color2);
-        graphics_draw_bitmap_in_rect(ctx, complication->bitmap, comp_shadow_rect(rect));
+        graphics_draw_bitmap_in_rect(ctx, complication->bitmap, shadow_rect(rect));
         gbitmap_set_color(complication->bitmap, 0, color1);
         graphics_draw_bitmap_in_rect(ctx, complication->bitmap, rect);
     }
@@ -182,7 +264,7 @@ void complication_draw(Layer* layer, GContext* ctx, uint32_t index, bool is_full
     complication->animation_counter--;
     if (complication->animation_counter <= 0) {
         complication->state = (complication->state + 1) % ComplicationState_MAX;
-        complication->animation_counter = FRAMES_PER_STATE[complication->state];
+        complication->animation_counter = s_frames_per_state[complication->state];
         complication->shake_offset = (GPoint) {0, 0};
         state_changed = true;
     }
@@ -229,18 +311,27 @@ static void complications_nextframe(void* context) {
 }
 
 static void update_complication_value(Complication* complication) {
+#if DEBUG_COMPL_VAL
+    static time_t now = 0;
+    now += SECONDS_PER_DAY * (DEBUG_COMPL_VAL - 1);
+#else // !DEBUG_COMPL_VAL
     const time_t now = time(NULL);
+#endif // !DEBUG_COMPL_VAL
+
     switch (complication->type) {
         case ComplicationType_Battery:
-            const int len = snprintf(complication->text, 4, "%u%%", MIN(99, battery_state_service_peek().charge_percent));
+            complication->value = battery_state_service_peek().charge_percent;
+            const int len = snprintf(complication->text, 4, "%u%%", (uint8_t)MIN(99, complication->value));
             ASSERT((len == 1) || (len == 2));  // suppress GCC -Wformat-truncation
             break;
         case ComplicationType_DayName:
             strftime(complication->text, 4, "%a", localtime(&now));
             break;
         case ComplicationType_DayNum:
-            strftime(complication->text, 4, "%d", localtime(&now));
-            // TODO add small st/nd/rd/th second text draw
+            const struct tm* now_tm = localtime(&now);
+            complication->value = now_tm->tm_mday;  // save value for suffix_rect()
+            // use snprintf to avoid leading 0
+            snprintf(complication->text, 4, "%u", (uint8_t)complication->value);
             break;
         case ComplicationType_MonthName:
             strftime(complication->text, 4, "%b", localtime(&now));
@@ -295,7 +386,7 @@ void complication_start(uint32_t index) {
     // note this doesn't count the +-1 pixel shake on appear
     const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
     const int16_t floatup_dist = floatup_distance(index);
-    const GRect full_rect = comp_rect_with_shadow(complication->rect);
+    const GRect full_rect = rect_with_shadow(complication->rect);
     const GSize total_size = {
         full_rect.size.w, full_rect.size.h + floatup_dist
     };
@@ -386,7 +477,7 @@ void complication_start(uint32_t index) {
         #endif // DEBUG_SHOW_COMPL_RECTS
 
         complication->state = ComplicationState_Appear;
-        complication->animation_counter = FRAMES_PER_STATE[complication->state];
+        complication->animation_counter = s_frames_per_state[complication->state];
         complication->shake_offset = (GPoint) {0, 0};
         return;
     }
@@ -407,13 +498,13 @@ void complications_stop(void) {
 }
 
 static void configure_complications(void) {
-    complications[0].type = ComplicationType_Tick;
+    complications[0].type = ComplicationType_DayNum;
     complications[0].color1 = GColorPurple;
     complications[0].color2 = GColorGreen;
-    complications[1].type = ComplicationType_DayNum;
+    complications[1].type = ComplicationType_MonthName;
     complications[1].color1 = GColorPurple;
     complications[1].color2 = GColorGreen;
-    complications[2].type = ComplicationType_MonthName;
+    complications[2].type = ComplicationType_Tick;
     complications[2].color1 = GColorPurple;
     complications[2].color2 = GColorGreen;
 }
@@ -421,6 +512,7 @@ static void configure_complications(void) {
 void complications_init(void) {
     s_font_letters = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_COMIC_LETTERS_22));
     s_font_numbers = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_COMIC_NUMBERS_22));
+    s_font_suffix = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_COMIC_SUFFIX_10));
     s_tick = gbitmap_create_with_resource(RESOURCE_ID_TICK);
     configure_complications();
 }
@@ -428,5 +520,6 @@ void complications_init(void) {
 void complications_destroy(void) {
     fonts_unload_custom_font(s_font_letters);
     fonts_unload_custom_font(s_font_numbers);
+    fonts_unload_custom_font(s_font_suffix);
     gbitmap_destroy(s_tick);
 }
