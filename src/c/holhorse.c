@@ -56,7 +56,7 @@ static void draw_hand_hour(Layer* layer, GContext* ctx, int32_t angle) {
         NUM_HOUR_BITMAPS,
         HOUR_BITMAPS_RANGE_DEG,
         DEGREES_PER_HOUR_HAND,
-        angle + (DEGREES_PER_HOUR_HAND / 2),  // offset input angle to minimise final display error
+        (angle + (int32_t)(DEGREES_PER_HOUR_HAND / 2)) % TRIG_MAX_ANGLE,  // offset input angle to minimise final display error
         &fliprot_flags
     );
 
