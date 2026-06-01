@@ -374,10 +374,6 @@ void complication_start(uint32_t index) {
     ASSERT(index < NUM_COMPLICATIONS);
     Complication* const complication = &complications[index];
 
-    if (s_animation_timer == NULL) {
-        complications_nextframe(NULL);
-    }
-
     update_complication_value(complication);
     update_complication_size(complication);
 
@@ -479,6 +475,10 @@ void complication_start(uint32_t index) {
         complication->state = ComplicationState_Appear;
         complication->animation_counter = s_frames_per_state[complication->state];
         complication->shake_offset = (GPoint) {0, 0};
+
+        if (s_animation_timer == NULL) {
+            complications_nextframe(NULL);
+        }
         return;
     }
 
