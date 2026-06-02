@@ -370,6 +370,98 @@ static void update_complication_size(Complication* complication) {
     }
 }
 
+// how many segments to divide the clockface into for fallback gap detection
+#define GAP_NUM_SEGMENTS (60)
+
+// Populate fallback gap array with the current segments containing hands or complications
+static void populate_gap_array(bool is_segment_full[GAP_NUM_SEGMENTS]) {
+    // This function assumes the first two complications have been placed
+    int32_t full_angles[5];
+
+    const HandAngles hand_angles = analogue_get_angles();
+    full_angles[0] = hand_angles.sec - SEC_TO_TRIGANGLE(1);  // assume this is the third tick
+    full_angles[1] = hand_angles.min;
+    full_angles[2] = hand_angles.hour;
+    full_angles[3] = complications[0].angle;
+    full_angles[4] = complications[1].angle;
+
+    // how many segments each object extends either side of its centre (approximate)
+    // (must match the order assigned to full_angles above)
+    const int32_t half_arc[5] = {
+        1, // second hand
+        1, // minute hand
+        1, // hour hand
+        3, // complication
+        3, // complication
+    };
+
+    for (uint32_t i = 0; i < ARRAY_LEN(full_angles); i++) {
+        const int32_t segment = MUL_FRACT(full_angles[i], GAP_NUM_SEGMENTS, TRIG_MAX_ANGLE);
+        is_segment_full[segment] = true;
+        is_segment_full[(segment + half_arc[i]) % GAP_NUM_SEGMENTS] = true;
+        is_segment_full[(segment - half_arc[i]) % GAP_NUM_SEGMENTS] = true;
+    }
+}
+
+/// Fallback algorithm to place a complication when we've failed to calculate a
+/// position that definitely won't overlap
+static int32_t find_biggest_gap(void) {
+    bool is_segment_full[GAP_NUM_SEGMENTS] = {false};
+    populate_gap_array(is_segment_full);
+
+    // find the beginning of a gap to start from
+    int32_t start = 0;
+    while (!is_segment_full[start] && (start < GAP_NUM_SEGMENTS)) {
+        start++;
+    }
+    while (is_segment_full[start] && (start < GAP_NUM_SEGMENTS)) {
+        start++;
+    }
+    ASSERT(start != 0);
+    // this breaks if there's only one gap, but it shouldn't be possible to be here in that case.
+    ASSERT(start < (GAP_NUM_SEGMENTS - 1));
+
+    int32_t largest_gap_centre_index = -1;
+    int32_t largest_gap_size = 1;
+    int32_t current_gap_size = 1;
+
+    LOG("gap search start = %d", start);
+    for (int32_t i = (start + 1); i != start; i = (i + 1) % GAP_NUM_SEGMENTS) {
+        if (!is_segment_full[i]) {
+            current_gap_size++;
+        } else {
+            if (current_gap_size > largest_gap_size) {
+                LOG("new best gap at %d", i);
+                largest_gap_size = current_gap_size;
+                largest_gap_centre_index = (i - (largest_gap_size / 2)) % GAP_NUM_SEGMENTS;
+            }
+            current_gap_size = 0;
+        }
+    }
+
+    LOG("best gap centre = %d", largest_gap_centre_index);
+    return MUL_FRACT(largest_gap_centre_index, TRIG_MAX_ANGLE, GAP_NUM_SEGMENTS);
+}
+
+// activate a complication, having initialised its value, size and origin
+static void complication_activate(uint32_t index) {
+    ASSERT(index < NUM_COMPLICATIONS);
+    Complication* const complication = &complications[index];
+
+    #if DEBUG_SHOW_COMPL_RECTS
+        complication->rect.size.h += floatup_distance(index);
+        complication->rect.origin.y -= floatup_distance(index);
+    #endif // DEBUG_SHOW_COMPL_RECTS
+
+    complication->state = ComplicationState_Appear;
+    complication->animation_counter = s_frames_per_state[complication->state];
+    complication->shake_offset = (GPoint) {0, 0};
+
+    if (s_animation_timer == NULL) {
+        complications_nextframe(NULL);
+    }
+}
+
 void complication_start(uint32_t index) {
     ASSERT(index < NUM_COMPLICATIONS);
     Complication* const complication = &complications[index];
@@ -467,22 +559,23 @@ void complication_start(uint32_t index) {
         complication->rect.origin = origin;
         complication->rect.origin.y += floatup_dist;
 
-        #if DEBUG_SHOW_COMPL_RECTS
-            complication->rect.size.h += floatup_distance(index);
-            complication->rect.origin.y -= floatup_distance(index);
-        #endif // DEBUG_SHOW_COMPL_RECTS
-
-        complication->state = ComplicationState_Appear;
-        complication->animation_counter = s_frames_per_state[complication->state];
-        complication->shake_offset = (GPoint) {0, 0};
-
-        if (s_animation_timer == NULL) {
-            complications_nextframe(NULL);
-        }
+        complication_activate(index);
         return;
     }
 
-    LOG_ERR("Failed to place complication");
+    // This should only be possible for the last complication
+    LOG_ERR("Failed to place complication #%u", index);
+
+    // Fallback; just put it in the biggest gap.
+    complication->angle = find_biggest_gap();
+    complication->arc = 0; // don't bother setting it correctly; only used for the previous angle selection algorithm
+    const GPoint bitmap_centre = point_from_angle(display_centre, complication->angle, COMPLICATION_RADIUS);
+    complication->rect.origin = GPoint(
+        bitmap_centre.x - total_size.w / 2,
+        bitmap_centre.y - total_size.h / 2
+    );
+    complication->rect.origin.y += floatup_dist;
+    complication_activate(index);
 }
 
 void complications_stop(void) {
