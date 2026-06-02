@@ -142,6 +142,8 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
     switch (complication->state) {
 
         case ComplicationState_Off:
+            // one last full-screen refresh to restore any clipped hands
+            mark_root_window_dirty();
             *draw = false;
             break;
 
