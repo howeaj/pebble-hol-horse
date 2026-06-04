@@ -28,6 +28,7 @@ typedef enum ComplicationType {
     ComplicationType_DayNum,
     ComplicationType_MonthName,
     ComplicationType_MonthNum,
+    ComplicationType_Steps,
     // TODO ComplicationType_Sleep,
     // TODO ComplicationType_Timezone
     // TODO Alternate time zone hours
@@ -262,6 +263,30 @@ static void complications_nextframe(void* context) {
     }
 }
 
+static bool is_health_metric_accessible(HealthMetric metric) {
+    const time_t start = time_start_of_today();
+    const time_t end = time(NULL);
+    const HealthServiceAccessibilityMask mask = health_service_metric_accessible(metric, start, end);
+    return mask & HealthServiceAccessibilityMaskAvailable;
+}
+
+// Get the value for the steps complication, in either steps or metres
+static uint32_t get_steps_value(void) {
+    uint32_t val = 0;
+    const bool is_distance = false;  // TODO get_config().steps_is_distance
+    if (is_distance) {
+        if (is_health_metric_accessible(HealthMetricWalkedDistanceMeters)) {
+            val = (uint32_t)health_service_sum_today(HealthMetricWalkedDistanceMeters);
+        }
+        // TODO optionally convert to miles
+    } else {
+        if (is_health_metric_accessible(HealthMetricStepCount)) {
+            val = (uint32_t)health_service_sum_today(HealthMetricStepCount);
+        }
+    }
+    return val;
+}
+
 static void update_complication_value(Complication* complication) {
 #if DEBUG_COMPL_VAL
     static time_t now = 0;
@@ -301,8 +326,19 @@ static void update_complication_value(Complication* complication) {
         case ComplicationType_MonthNum: {
             strftime(complication->text, MAX_TEXT_LEN, "%m", localtime(&now));
             break;
+        }
+        case ComplicationType_Steps: {
+            const uint32_t val = get_steps_value();
+            if (val < 10000) {  // kilo-units, 1 decimal place
+                const int len = snprintf(complication->text, MAX_TEXT_LEN, "%u.%uk",
+                                         (uint8_t)(val / 1000), (uint8_t)((val % 1000) / 100));
+                ASSERT(len == 4);  // suppress GCC -Wformat-truncation
+            } else {  // kilo-units, 0 decimal places
+                const int len = snprintf(complication->text, MAX_TEXT_LEN, "%uk", (uint8_t)MIN(99, val / 1000));
+                ASSERT(len == 3);  // suppress GCC -Wformat-truncation
+            }
             break;
-        default:
+        }
         default: {
             ASSERT(false);
             break;
@@ -315,7 +351,8 @@ static void update_complication_size(Complication* complication) {
         case ComplicationType_Battery:
         case ComplicationType_DayNum:
         case ComplicationType_MonthNum:
-            complication->rect.size = (GSize){50, 25};
+        case ComplicationType_Steps:
+            complication->rect.size = (GSize){53, 25};
             break;
         case ComplicationType_DayName:
         case ComplicationType_MonthName:
