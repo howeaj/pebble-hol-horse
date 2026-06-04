@@ -28,6 +28,13 @@ typedef enum ComplicationType {
     ComplicationType_DayNum,
     ComplicationType_MonthName,
     ComplicationType_MonthNum,
+    // TODO ComplicationType_Sleep,
+    // TODO ComplicationType_Timezone
+    // TODO Alternate time zone hours
+    // TODO temperature
+    // TODO weather?
+    // TODO bluetooth?
+    // Heartrate not supported because PR2 doesn't have one
 } ComplicationType;
 
 typedef enum ComplicationState {
@@ -39,12 +46,13 @@ typedef enum ComplicationState {
     ComplicationState_MAX,  // end-of-enum sentinel
 } ComplicationState;
 
+#define MAX_TEXT_LEN (6)
+
 typedef struct Complication {
     ComplicationType type;
     GBitmap* bitmap;
-    char text[4];
+    char text[MAX_TEXT_LEN];
     uint32_t value;
-    GFont font;
     GColor color1;  // main
     GColor color2;  // shadow
 
@@ -56,9 +64,7 @@ typedef struct Complication {
     int32_t arc;
 } Complication;
 
-static GFont s_font_letters;
-static GFont s_font_numbers;
-static GFont s_font_suffix;
+static GFont s_font;
 static AppTimer* s_animation_timer = NULL;
 static GBitmap* s_tick;
 static Complication complications[NUM_COMPLICATIONS];
@@ -82,48 +88,6 @@ static int16_t floatup_distance(uint32_t index) {
         - (index * FRAMERATE)
     );
     return num_frames / FLOAT_FRAMES_PER_PIXEL;
-}
-
-// starting offset of the ordinal suffix to leave a 1px gap before it
-const int8_t s_ordinal_suffix_offset[31] = {
-    4,   // 1
-    14,  // 2
-    14,  // 3
-    18,  // 4
-    15,  // 5
-    16,  // 6
-    7,   // 7
-    17,  // 8
-    14,  // 9
-    24,  // 10
-    12,  // 11
-    21,  // 12
-    23,  // 13
-    25,  // 14
-    22,  // 15
-    23,  // 16
-    14,  // 17
-    24,  // 18
-    21,  // 19
-    34,  // 20
-    21,  // 21
-    33,  // 22
-    32,  // 23
-    35,  // 24
-    32,  // 25
-    33,  // 26
-    24,  // 27
-    34,  // 28
-    31,  // 29
-    34,  // 30
-    21,  // 31
-};
-
-static inline GRect suffix_rect(GRect rect, int32_t value) {
-    ASSERT((size_t)value <= ARRAY_LEN(s_ordinal_suffix_offset));
-    const int16_t dx = s_ordinal_suffix_offset[value - 1];
-    const int16_t h = 10;
-    return GRect(rect.origin.x + dx, rect.origin.y + (rect.size.h - h), rect.size.w - dx, h);
 }
 
 #define SHAD_OFF (2)// Pixel offset of the complications' shadow
@@ -190,9 +154,9 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
     }
 }
 
-/// Return the ordinal suffix for a number.
-/// Only correct for values <= 110
-static const char* ordinal_suffix(uint32_t value) {
+/// Return the ordinal indicator for a number.
+/// Only implemented correctly for values <= 110
+static const char* ordinal_indicator(uint32_t value) {
     if (WITHIN(value, 11, 13)) {
         value = 0;
     }
@@ -212,35 +176,21 @@ static const char* ordinal_suffix(uint32_t value) {
     }
 }
 
-static void draw_text_with_shadow(GContext* ctx, const char* text, GFont font,
-                                  GRect rect, GTextOverflowMode overflow_mode, GTextAlignment alignment,
+static void draw_text_with_shadow(GContext* ctx, const char* text, GRect rect,
+                                  GTextOverflowMode overflow_mode, GTextAlignment alignment,
                                   GColor color_text, GColor color_shadow) {
     graphics_context_set_text_color(ctx, color_shadow);
-    graphics_draw_text(ctx, text, font, shadow_rect(rect), GTextOverflowModeWordWrap, alignment, NULL);
+    graphics_draw_text(ctx, text, s_font, shadow_rect(rect), GTextOverflowModeWordWrap, alignment, NULL);
     graphics_context_set_text_color(ctx, color_text);
-    graphics_draw_text(ctx, text, font, rect, GTextOverflowModeWordWrap, alignment, NULL);
+    graphics_draw_text(ctx, text, s_font, rect, GTextOverflowModeWordWrap, alignment, NULL);
 }
 
 // Perform the graphics draw operation to draw `complication` in `rect` with the given `color`s
 static void graphics_draw_complication(GContext* ctx, Complication* complication,
                                        GRect rect, GColor color1, GColor color2) {
     if (complication_is_text(complication)) {
-        const GTextAlignment alignment =
-            (complication->type == ComplicationType_DayNum) ? GTextAlignmentLeft : GTextAlignmentCenter;
-        if ((alignment == GTextAlignmentLeft) && (complication->text[1] == '\0')) {  // manually ~centre text
-            rect.origin.x += 20;
-            rect.size.w -= 20;
-        }
-
-        draw_text_with_shadow(ctx, complication->text, complication->font, rect,
-            GTextOverflowModeWordWrap, alignment, color1, color2);
-
-        // ordinal suffix
-        if (complication->type == ComplicationType_DayNum) {
-            draw_text_with_shadow(ctx, ordinal_suffix(complication->value), s_font_suffix,
-                suffix_rect(rect, complication->value),
-                GTextOverflowModeWordWrap, GTextAlignmentLeft, color1, color2);
-        }
+        draw_text_with_shadow(ctx, complication->text, rect,
+            GTextOverflowModeWordWrap, GTextAlignmentCenter, color1, color2);
     } else {
         gbitmap_set_color(complication->bitmap, 0, color2);
         graphics_draw_bitmap_in_rect(ctx, complication->bitmap, shadow_rect(rect));
@@ -321,32 +271,42 @@ static void update_complication_value(Complication* complication) {
 #endif // !DEBUG_COMPL_VAL
 
     switch (complication->type) {
-        case ComplicationType_Battery:
-            complication->value = battery_state_service_peek().charge_percent;
-            const int len = snprintf(complication->text, 4, "%u%%", (uint8_t)MIN(99, complication->value));
-            ASSERT((len == 1) || (len == 2));  // suppress GCC -Wformat-truncation
-            break;
-        case ComplicationType_DayName:
-            strftime(complication->text, 4, "%a", localtime(&now));
-            break;
-        case ComplicationType_DayNum:
-            const struct tm* now_tm = localtime(&now);
-            complication->value = now_tm->tm_mday;  // save value for suffix_rect()
-            // use snprintf to avoid leading 0
-            snprintf(complication->text, 4, "%u", (uint8_t)complication->value);
-            break;
-        case ComplicationType_MonthName:
-            strftime(complication->text, 4, "%b", localtime(&now));
-            break;
-        case ComplicationType_MonthNum:
-            strftime(complication->text, 4, "%m", localtime(&now));
-            break;
-        case ComplicationType_Tick:
+        case ComplicationType_Tick: {
             complication->bitmap = s_tick;
             break;
+        }
+        case ComplicationType_Battery: {
+            complication->value = battery_state_service_peek().charge_percent;
+            const int len = snprintf(complication->text, MAX_TEXT_LEN, "%u%%", (uint8_t)MIN(99, complication->value));
+            ASSERT((len == 1) || (len == 2));  // suppress GCC -Wformat-truncation
+            break;
+        }
+        case ComplicationType_DayName: {
+            strftime(complication->text, MAX_TEXT_LEN, "%a", localtime(&now));
+            string_to_upper(complication->text, MAX_TEXT_LEN);
+            break;
+        }
+        case ComplicationType_DayNum: {
+            const struct tm* now_tm = localtime(&now);
+            // use snprintf to avoid leading 0
+            snprintf(complication->text, MAX_TEXT_LEN, "%u%s",
+                     now_tm->tm_mday, ordinal_indicator(now_tm->tm_mday));
+            break;
+        }
+        case ComplicationType_MonthName: {
+            strftime(complication->text, MAX_TEXT_LEN, "%b", localtime(&now));
+            string_to_upper(complication->text, MAX_TEXT_LEN);
+            break;
+        }
+        case ComplicationType_MonthNum: {
+            strftime(complication->text, MAX_TEXT_LEN, "%m", localtime(&now));
+            break;
+            break;
         default:
+        default: {
             ASSERT(false);
             break;
+        }
     }
 }
 
@@ -355,12 +315,10 @@ static void update_complication_size(Complication* complication) {
         case ComplicationType_Battery:
         case ComplicationType_DayNum:
         case ComplicationType_MonthNum:
-            complication->font = s_font_numbers;
             complication->rect.size = (GSize){50, 25};
             break;
         case ComplicationType_DayName:
         case ComplicationType_MonthName:
-            complication->font = s_font_letters;
             complication->rect.size = (GSize){53, 22};
             break;
         case ComplicationType_Tick:
@@ -605,16 +563,12 @@ static void configure_complications(void) {
 }
 
 void complications_init(void) {
-    s_font_letters = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_COMIC_LETTERS_22));
-    s_font_numbers = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_COMIC_NUMBERS_22));
-    s_font_suffix = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_COMIC_SUFFIX_10));
+    s_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MANGA_22));
     s_tick = gbitmap_create_with_resource(RESOURCE_ID_TICK);
     configure_complications();
 }
 
 void complications_destroy(void) {
-    fonts_unload_custom_font(s_font_letters);
-    fonts_unload_custom_font(s_font_numbers);
-    fonts_unload_custom_font(s_font_suffix);
+    fonts_unload_custom_font(s_font);
     gbitmap_destroy(s_tick);
 }

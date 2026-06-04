@@ -1,17 +1,13 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
 /* TODO
-    - TODO Tick overlapped minute hand at 18 past
-    - Test all tick placements
+    - Debug render all complication values for testing
     - 1 minute fast
-    - Rounder minute hand bobble?
     - If seconds are visible at noon, play shoot animation panels
     - Za Waldo stop time and invert colours for 5 seconds... but when to trigger?
         - bluetooth disconnect?
         - on charger?
-    - complications
-        - bluetooth
-        - steps
+    - complications (see complications.c)
     - config:
         1 min fast
         Shake to activate

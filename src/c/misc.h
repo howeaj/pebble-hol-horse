@@ -5,6 +5,7 @@
 #include "debug.h"
 #include "macros.h"
 
+#include <ctype.h>
 #include <pebble.h>
 
 
@@ -41,4 +42,11 @@ static inline GPoint point_from_angle(GPoint origin, int32_t angle, int32_t dist
 // Return the angle from a to b in TRIGANGLE units
 static inline int32_t angle_between_points(GPoint a, GPoint b) {
     return atan2_lookup(b.x - a.x, b.y - a.y);  // TODO why are x and y reversed ???????
+}
+
+// in-place string to upper case
+static inline void string_to_upper(char* str, size_t n) {
+    for (size_t i = 0; (i < n) && str[i]; i++){
+        str[i] = toupper(str[i]);
+    }
 }
