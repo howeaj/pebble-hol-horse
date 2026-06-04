@@ -29,9 +29,8 @@ typedef enum ComplicationType {
     ComplicationType_MonthName,
     ComplicationType_MonthNum,
     ComplicationType_Steps,
-    // TODO ComplicationType_Sleep,
+    ComplicationType_Sleep,
     // TODO ComplicationType_Timezone
-    // TODO Alternate time zone hours
     // TODO temperature
     // TODO weather?
     // TODO bluetooth?
@@ -287,6 +286,17 @@ static uint32_t get_steps_value(void) {
     return val;
 }
 
+// Get the value for the sleep complication, either normal or restful
+static uint32_t get_sleep_seconds(void) {
+    uint32_t val = 0;
+    const bool is_restful = false;  // TODO get_config().sleep_is_restful
+    const HealthMetric metric = is_restful ? HealthMetricSleepRestfulSeconds : HealthMetricSleepSeconds;
+    if (is_health_metric_accessible(metric)) {
+        val = (uint32_t)health_service_sum_today(metric);
+    }
+    return val;
+}
+
 static void update_complication_value(Complication* complication) {
 #if DEBUG_COMPL_VAL
     static time_t now = 0;
@@ -339,6 +349,17 @@ static void update_complication_value(Complication* complication) {
             }
             break;
         }
+        case ComplicationType_Sleep: {
+            const time_t seconds = (time_t)get_sleep_seconds();
+            struct tm * gmtime (const time_t * timer);
+            const int len = snprintf(complication->text, MAX_TEXT_LEN, "%uh%u%u",
+                (uint8_t)(seconds / SECONDS_PER_HOUR),
+                (uint8_t)(((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE) / 10),
+                (uint8_t)(((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE) % 10)
+            );
+            ASSERT((len == 4) || (len == 5));
+            break;
+        }
         default: {
             ASSERT(false);
             break;
@@ -348,6 +369,9 @@ static void update_complication_value(Complication* complication) {
 
 static void update_complication_size(Complication* complication) {
     switch (complication->type) {
+        case ComplicationType_Sleep:
+            complication->rect.size = (GSize){60, 25};
+            break;
         case ComplicationType_Battery:
         case ComplicationType_DayNum:
         case ComplicationType_MonthNum:
