@@ -150,8 +150,9 @@ static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
     analogue_update_angles(tick_time, units_changed);
 
     if (should_show_seconds()) {
-        complication_start(s_num_seconds_shown);
         s_num_seconds_shown = MIN(MAX_NUM_SECONDS, s_num_seconds_shown + 1);
+        ASSERT(s_num_seconds_shown > 0);
+        complication_start(s_num_seconds_shown - 1);
     } else {
         if (s_num_seconds_shown > 0) {
             complications_stop();
