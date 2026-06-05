@@ -138,7 +138,7 @@ static void draw_hand_sec_shadow(Layer* layer, GContext* ctx, int32_t angle) {
  This watchface implementation; handlers
 ******************************************************************************/
 
-static GBitmap* s_face_real;
+static GBitmap* s_face;
 
 #define MAX_NUM_SECONDS (3)
 static int8_t s_num_seconds_shown = 0;
@@ -204,7 +204,7 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
 #endif // DEBUG_DRAW_FACE
 
         // baked face bitmap
-        graphics_draw_bitmap_in_rect(ctx, s_face_real, bounds);
+        graphics_draw_bitmap_in_rect(ctx, s_face, bounds);
 
 #if DEBUG_DRAW_FACE
         draw_face(bounds, ctx);
@@ -241,11 +241,11 @@ static void set_bitmap_colors(const Config* config) {
     const GColor fgColor = config->fgColor;
     const GColor bgColor = config->bgColor;
 
-    gbitmap_set_color(s_face_real, 0, bgColor);
-    gbitmap_set_color(s_face_real, 1, fgColor);
-    // gbitmap_set_color(s_face_real, 2, GColorLightGrey);
-    gbitmap_set_color(s_face_real, 3, config->minuteColor);
-    gbitmap_set_color(s_face_real, 4, config->hourColor);
+    gbitmap_set_color(s_face, 0, bgColor);
+    gbitmap_set_color(s_face, 1, fgColor);
+    // gbitmap_set_color(s_face, 2, GColorLightGrey);
+    gbitmap_set_color(s_face, 3, config->minuteColor);
+    gbitmap_set_color(s_face, 4, config->hourColor);
 
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
         gbitmap_set_color(s_hour_hand_bitmaps[i], 0, config->hourColor);
@@ -259,7 +259,7 @@ static void set_bitmap_colors(const Config* config) {
 
 static void init_resources(Layer *root_layer) {
     complications_init();
-    s_face_real = gbitmap_create_with_resource(RESOURCE_ID_FACE_REAL);
+    s_face = gbitmap_create_with_resource(RESOURCE_ID_FACE_REAL);
     s_hour_hand_bitmaps[0] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_0);
     s_hour_hand_bitmaps[1] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_7_5);
     s_hour_hand_bitmaps[2] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_15);
@@ -279,7 +279,7 @@ static void init_resources(Layer *root_layer) {
 
 static void destroy_resources(void) {
     complications_destroy();
-    gbitmap_destroy(s_face_real);
+    gbitmap_destroy(s_face);
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
         gbitmap_destroy(s_hour_hand_bitmaps[i]);
     }
