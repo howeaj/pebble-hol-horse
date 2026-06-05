@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "keywords": ["pebble-app"],
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "@rebble/clay": "^1.0.8"
+  },
   "pebble": {
     "displayName": "Hol Horse",
     "uuid": "dbff2dea-d6d3-4214-b213-d5362680db06",
@@ -13,11 +15,20 @@
     "targetPlatforms": [
       "gabbro"
     ],
-    "watchapp": {
-      "watchface": true
-    },
+    "watchapp": { "watchface": true },
     "messageKeys": [
-      "dummy"
+      "theme",
+      "fgColor",
+      "bgColor",
+      "comp1FgColor",
+      "comp1BgColor",
+      "comp2FgColor",
+      "comp2BgColor",
+      "comp3FgColor",
+      "comp3BgColor",
+      "comp1Type",
+      "comp2Type",
+      "comp3Type"
     ],
     "resources": {
       "media": [

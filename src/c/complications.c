@@ -3,6 +3,7 @@
 #include "complications.h"
 
 #include "analogue.h"
+#include "config.h"
 #include "debug.h"
 #include "dissolve.h"
 #include "macros.h"
@@ -14,28 +15,11 @@
 
 #define FRAMERATE (30)
 #define MS_PER_FRAME (MS_PER_S / FRAMERATE)
-#define BGCOLOR (GColorWhite)
 
 #define NUM_COMPLICATIONS (3)
 #define COMPLICATION_RADIUS MUL_FRACT(PBL_DISPLAY_WIDTH, 1, 5) // distance from centre to place each complication
 #define FLOAT_PIXELS_PER_SECOND (6)
 #define FLOAT_FRAMES_PER_PIXEL (FRAMERATE / FLOAT_PIXELS_PER_SECOND)
-
-typedef enum ComplicationType {
-    ComplicationType_Tick = 0,
-    ComplicationType_Battery,
-    ComplicationType_DayName,
-    ComplicationType_DayNum,
-    ComplicationType_MonthName,
-    ComplicationType_MonthNum,
-    ComplicationType_Steps,
-    ComplicationType_Sleep,
-    // TODO ComplicationType_Timezone
-    // TODO temperature
-    // TODO weather?
-    // TODO bluetooth?
-    // Heartrate not supported because PR2 doesn't have one
-} ComplicationType;
 
 typedef enum ComplicationState {
     ComplicationState_Off = 0,
@@ -132,7 +116,7 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
 
         case ComplicationState_Disappear:
             // stop drawing the bitmap; "dissolve in" a background-coloured rect on top of it
-            dissolve_rect(ctx, rect_with_shadow(complication->rect), BGCOLOR);
+            dissolve_rect(ctx, rect_with_shadow(complication->rect), config_get()->bgColor);
             if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
 #if !DEBUG_SHOW_COMPL_RECTS
                 complication->rect.size.h += 1;
@@ -226,12 +210,13 @@ void complication_draw(Layer* layer, GContext* ctx, uint32_t index, bool is_full
     apply_complication_state_effects(ctx, complication, is_full_redraw, state_changed, &erase, &draw);
 
     if (erase) {
+        const GColor bgColor = config_get()->bgColor;
         // If our placements were perfect it would be fine to erase the whole rect, but they aren't...
-        // graphics_context_set_fill_color(ctx, BGCOLOR);
+        // graphics_context_set_fill_color(ctx, bgColor);
         // graphics_fill_rect(ctx, prev_rect, 0, GCornerNone);
 
         // ...so instead only erase exactly what we drew
-        graphics_draw_complication(ctx, complication, prev_rect, BGCOLOR, BGCOLOR);
+        graphics_draw_complication(ctx, complication, prev_rect, bgColor, bgColor);
     }
 
     if (draw) {
@@ -313,7 +298,7 @@ static void update_complication_value(Complication* complication) {
         case ComplicationType_Battery: {
             complication->value = battery_state_service_peek().charge_percent;
             const int len = snprintf(complication->text, MAX_TEXT_LEN, "%u%%", (uint8_t)MIN(99, complication->value));
-            ASSERT((len == 1) || (len == 2));  // suppress GCC -Wformat-truncation
+            ASSERT((len == 2) || (len == 3));  // suppress GCC -Wformat-truncation
             break;
         }
         case ComplicationType_DayName: {
@@ -611,22 +596,21 @@ void complications_stop(void) {
     complications[NUM_COMPLICATIONS - 1].shake_offset = (GPoint) {0, 0};
 }
 
-static void configure_complications(void) {
-    complications[0].type = ComplicationType_DayNum;
-    complications[0].color1 = GColorPurple;
-    complications[0].color2 = GColorGreen;
-    complications[1].type = ComplicationType_MonthName;
-    complications[1].color1 = GColorPurple;
-    complications[1].color2 = GColorGreen;
-    complications[2].type = ComplicationType_Tick;
-    complications[2].color1 = GColorPurple;
-    complications[2].color2 = GColorGreen;
+void complications_configure(const Config* config){
+    complications[0].type = config->comp1Type;
+    complications[0].color1 = config->comp1FgColor;
+    complications[0].color2 = config->comp1BgColor;
+    complications[1].type = config->comp2Type;
+    complications[1].color1 = config->comp2FgColor;
+    complications[1].color2 = config->comp2BgColor;
+    complications[2].type = config->comp3Type;
+    complications[2].color1 = config->comp3FgColor;
+    complications[2].color2 = config->comp3BgColor;
 }
 
 void complications_init(void) {
     s_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MANGA_22));
     s_tick = gbitmap_create_with_resource(RESOURCE_ID_TICK);
-    configure_complications();
 }
 
 void complications_destroy(void) {

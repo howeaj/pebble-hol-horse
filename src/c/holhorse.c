@@ -2,6 +2,7 @@
 
 /* TODO
     - Debug render all complication values for testing
+    - Change font subscript to superscript
     - 1 minute fast
     - If seconds are visible at noon, play shoot animation panels
     - Za Waldo stop time and invert colours for 5 seconds... but when to trigger?
@@ -100,21 +101,22 @@ static void draw_hand_sec(Layer* layer, GContext* ctx, int32_t angle) {
     const GPoint centre = grect_center_point(&bounds);
     const GRect mid_bounds = grect_crop(bounds, (PBL_DISPLAY_WIDTH / 6) - MUL_FRACT(PBL_DISPLAY_WIDTH / 6, 2, 5));
     const GPoint tip = gpoint_from_polar(mid_bounds, GOvalScaleModeFitCircle, angle);
+    const Config* config = config_get();
 
-    graphics_context_set_stroke_color(ctx, GColorWhite);
+    graphics_context_set_stroke_color(ctx, config->bgColor);
     graphics_context_set_antialiased(ctx, false);
     graphics_draw_line(ctx, centre, tip);
     if (analogue_is_vertical(angle)){
         graphics_draw_line(ctx, (GPoint){centre.x + 1, centre.y}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x - 1, centre.y}, tip);
-        graphics_context_set_stroke_color(ctx, GColorBlack);
+        graphics_context_set_stroke_color(ctx, config->fgColor);
         graphics_context_set_antialiased(ctx, true);
         graphics_draw_line(ctx, (GPoint){centre.x + 2, centre.y}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x - 2, centre.y}, tip);
     } else {  // horizontal
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y + 1}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y - 1}, tip);
-        graphics_context_set_stroke_color(ctx, GColorBlack);
+        graphics_context_set_stroke_color(ctx, config->fgColor);
         graphics_context_set_antialiased(ctx, true);
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y + 2}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y - 2}, tip);
@@ -127,7 +129,7 @@ static void draw_hand_sec_shadow(Layer* layer, GContext* ctx, int32_t angle) {
     const GRect mid_bounds = grect_crop(bounds, (PBL_DISPLAY_WIDTH / 6) + MUL_FRACT(PBL_DISPLAY_WIDTH / 6, 1, 5));
     const GPoint tip = gpoint_from_polar(mid_bounds, GOvalScaleModeFitCircle, angle);
 
-    graphics_context_set_stroke_color(ctx, GColorBlack);
+    graphics_context_set_stroke_color(ctx, config_get()->fgColor);
     graphics_draw_line(ctx, centre, tip);
 }
 
@@ -197,7 +199,7 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
     {
 
 #if DEBUG_DRAW_FACE
-        graphics_context_set_fill_color(ctx, BGCOLOR);
+        graphics_context_set_fill_color(ctx, config_get()->bgColor);
         graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 #endif // DEBUG_DRAW_FACE
 
@@ -235,7 +237,25 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
     PROFILE_END("draw_root_layer");
 }
 
-static void set_bitmap_colors(void) {
+static void set_bitmap_colors(const Config* config) {
+    const GColor fgColor = config->fgColor;
+    const GColor bgColor = config->bgColor;
+
+    gbitmap_set_color(s_face_real, 0, fgColor);  // foreground
+    // TODO sort out these colours
+    gbitmap_set_color(s_face_real, 1, GColorDarkGray);  // 66% opaque
+    gbitmap_set_color(s_face_real, 2, GColorLightGray);  //  33% opaque
+    gbitmap_set_color(s_face_real, 3, bgColor);  // background
+
+    // TODO these are 8bit, not palletised...
+    for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
+        gbitmap_set_color(s_hour_hand_bitmaps[i], 0, fgColor);
+        gbitmap_set_color(s_hour_hand_bitmaps[i], 1, bgColor);
+    }
+    for (size_t i = 0; i < ARRAY_LEN(s_min_hand_bitmaps); i++) {
+        gbitmap_set_color(s_min_hand_bitmaps[i], 0, fgColor);
+        gbitmap_set_color(s_min_hand_bitmaps[i], 1, bgColor);
+    }
 }
 
 static void init_resources(Layer *root_layer) {
@@ -256,9 +276,6 @@ static void init_resources(Layer *root_layer) {
     s_min_hand_bitmaps[5] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_5);
     s_min_hand_bitmaps[6] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_6);
     s_min_hand_bitmaps[7] = gbitmap_create_with_resource(RESOURCE_ID_HAND_MIN_7);
-
-    // TODO move to handle_config
-    set_bitmap_colors();
 }
 
 static void destroy_resources(void) {
@@ -330,18 +347,30 @@ static void fast_time_handler(void* context) {
 }
 #endif // FAST_TIME_MS
 
+static void new_config_handler(const Config* config) {
+    set_bitmap_colors(config);
+    complications_configure(config);
+    mark_root_window_dirty();
+    s_is_full_redraw = true;
+}
+
 static void main_window_load(Window *window) {
+    config_init(new_config_handler);
+
     Layer* const root_layer = window_get_root_layer(window);
     layer_set_update_proc(root_layer, draw_root_layer);
     init_resources(root_layer);
     accel_tap_service_subscribe(accel_tap_handler);
     app_timer_register(1, activation_handler, NULL);
+
+    new_config_handler(config_get());
 }
 
 static void main_window_unload(Window *window) {
     destroy_resources();
     accel_tap_service_unsubscribe();
     tick_timer_service_unsubscribe();
+    config_deinit();
 }
 
 static void init(void) {
