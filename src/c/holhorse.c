@@ -330,8 +330,8 @@ static void activation_handler(void* context) {
 #if !FAST_TIME_MS
         tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
 #endif // !FAST_TIME_MS
+        s_active_ticks_remaining = ACTIVE_DURATION_S;
     }
-    s_active_ticks_remaining = ACTIVE_DURATION_S;
 }
 
 static void accel_tap_handler(AccelAxisType axis, int32_t direction) {
