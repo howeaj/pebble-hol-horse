@@ -25,8 +25,10 @@
 */
 #define X_CONFIG_OPTIONS(MACRO) \
     /* conftype, C type,              message key,                  default */ \
-    MACRO(COLOR, GColor,              fgColor,                      GColorBlack) \
     MACRO(COLOR, GColor,              bgColor,                      GColorWhite) \
+    MACRO(COLOR, GColor,              fgColor,                      GColorBlack) \
+    MACRO(COLOR, GColor,              hourColor,                    GColorBlack) \
+    MACRO(COLOR, GColor,              minuteColor,                  GColorBlack) \
     MACRO(COLOR, GColor,              comp1FgColor,                 GColorPurple) \
     MACRO(COLOR, GColor,              comp1BgColor,                 GColorGreen) \
     MACRO(COLOR, GColor,              comp2FgColor,                 GColorPurple) \

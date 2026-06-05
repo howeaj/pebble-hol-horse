@@ -241,18 +241,18 @@ static void set_bitmap_colors(const Config* config) {
     const GColor fgColor = config->fgColor;
     const GColor bgColor = config->bgColor;
 
-    gbitmap_set_color(s_face_real, 0, fgColor);  // foreground
-    // TODO sort out these colours
-    gbitmap_set_color(s_face_real, 1, GColorDarkGray);  // 66% opaque
-    gbitmap_set_color(s_face_real, 2, GColorLightGray);  //  33% opaque
-    gbitmap_set_color(s_face_real, 3, bgColor);  // background
+    gbitmap_set_color(s_face_real, 0, bgColor);
+    gbitmap_set_color(s_face_real, 1, fgColor);
+    // gbitmap_set_color(s_face_real, 2, GColorLightGrey);
+    gbitmap_set_color(s_face_real, 3, config->minuteColor);
+    gbitmap_set_color(s_face_real, 4, config->hourColor);
 
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
-        gbitmap_set_color(s_hour_hand_bitmaps[i], 0, fgColor);
+        gbitmap_set_color(s_hour_hand_bitmaps[i], 0, config->hourColor);
         gbitmap_set_color(s_hour_hand_bitmaps[i], 3, bgColor);
     }
     for (size_t i = 0; i < ARRAY_LEN(s_min_hand_bitmaps); i++) {
-        gbitmap_set_color(s_min_hand_bitmaps[i], 0, fgColor);
+        gbitmap_set_color(s_min_hand_bitmaps[i], 0, config->minuteColor);
         gbitmap_set_color(s_min_hand_bitmaps[i], 3, bgColor);
     }
 }

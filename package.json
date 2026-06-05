@@ -20,6 +20,8 @@
       "theme",
       "fgColor",
       "bgColor",
+      "hourColor",
+      "minuteColor",
       "comp1FgColor",
       "comp1BgColor",
       "comp2FgColor",
