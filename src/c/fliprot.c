@@ -57,9 +57,61 @@ static inline int16_t mirror_across_pivot_edge(int16_t val, int16_t pivot) {
 //     return pivot + pivot - val;
 // }
 
+/// Get the log2 of the bits per pixel
+static inline uint8_t gformat_get_bits_per_pixel_log2(GBitmapFormat format) {
+    switch (format) {
+        case GBitmapFormat1Bit:
+        case GBitmapFormat1BitPalette:
+            return 0;
+            break;
+        case GBitmapFormat2BitPalette:
+            return 1;
+            break;
+        case GBitmapFormat4BitPalette:
+            return 2;
+            break;
+        case GBitmapFormat8Bit:
+        case GBitmapFormat8BitCircular:
+            return 3;
+            break;
+        default:
+            ASSERT(false);
+            break;
+        }
+    return 0;
+}
+
+static inline uint8_t gformat_get_bits_per_pixel(GBitmapFormat format) {
+    return 1 << gformat_get_bits_per_pixel_log2(format);
+}
+
+/// From gbitmap.c
+static inline uint16_t gbitmap_format_get_row_size_bytes(int16_t width, GBitmapFormat format) {
+    switch (format) {
+        case GBitmapFormat1Bit:
+            return ((width + 31) / 32 ) * 4;  // word aligned bytes
+            break;
+        case GBitmapFormat8Bit:
+            return width;
+            break;
+        case GBitmapFormat1BitPalette:
+        case GBitmapFormat2BitPalette:
+        case GBitmapFormat4BitPalette:
+            return ((width * gformat_get_bits_per_pixel(format) + 7) / 8); // byte aligned
+            break;
+        case GBitmapFormat8BitCircular:
+            return 0; // variable width
+            break;
+        default:
+            ASSERT(false);
+            break;
+    }
+    return 0;
+}
+
 /// Blit a src bitmap onto dest with additional flips/rotations applied.
 /// Based on PebbleOs/src/fw/applib/graphics' bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit()
-static void bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit_fliprot(
+static void bitblt_fliprot(
     GBitmap *dest_bitmap, const GBitmap *src_bitmap, GRect dest_rect, GPoint src_origin_offset, FliprotFlags flags)
 {
     // TODO turn these into args; currently they just rotate around the centre
@@ -67,6 +119,8 @@ static void bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit_fliprot(
     const bool is_corner_pivot = true;  // true  = pivot around the origin (top-left) corner of the pixel at `pivot`
                                         // false = pivot around the centre of the pixel at `pivot`
     const GPoint pivot = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_HEIGHT / 2};
+
+    const GBitmapFormat format = gbitmap_get_format(src_bitmap);
 
     const GRect src_bounds = gbitmap_get_bounds(src_bitmap);
     const int16_t dest_begin_y = dest_rect.origin.y;
@@ -85,12 +139,13 @@ static void bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit_fliprot(
     const int16_t dest_begin_x = dest_delta_begin_x ? 0 : dest_rect.origin.x;
     const int16_t dest_end_x = MIN(grect_get_max_x(&dest_rect), grect_get_max_x(&dest_bounds));
 
-    uint8_t* const src = gbitmap_get_data(src_bitmap);
+    const uint8_t* const src = gbitmap_get_data(src_bitmap);
     // This is the initial position that takes into account destination delta shift
     const int16_t src_initial_x = src_bounds.origin.x + dest_delta_begin_x;
     const int16_t src_begin_x = src_bounds.origin.x;
     const int16_t src_end_x = grect_get_max_x(&src_bounds);
-    const int32_t src_bytes_per_row = src_bounds.size.w;
+    const int32_t src_pixels_per_row = src_bounds.size.w;
+    const int32_t src_bytes_per_row = gbitmap_format_get_row_size_bytes(src_pixels_per_row, format);
 
     // precalculations for the OpFlag_Rot90 index calculation
     const int16_t rot_y_offset = is_corner_pivot ? 1 : 0;
@@ -111,11 +166,17 @@ static void bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit_fliprot(
     const int32_t dest_finish_x = ((flags & OpFlag_FlipHorz) ? mirror_across_pivot_edge(dest_end_x, pivot.x)
                                                                 : dest_end_x);
 
+    // prepare data for palletized src bitmaps
+    const uint8_t src_pixel_bits_log2 = gformat_get_bits_per_pixel_log2(format);
+    const uint8_t src_pixel_bits = 1 << src_pixel_bits_log2;
+    const GColor *palette = gbitmap_get_palette(src_bitmap);
+
     // foreach destination row
+    // TODO try the optimisation already applied to x, to y too
     for (int16_t i = 0; i < (dest_end_y - dest_begin_y); ++i, ++src_y) {
         const int16_t dest_y = (flags & OpFlag_FlipVert) ? mirror_across_pivot_edge(dest_begin_y + i, pivot.y)
-                                                            : dest_begin_y + i;
-        const int32_t src_y_offset = src_y * src_bytes_per_row;
+                                                         : dest_begin_y + i;
+        const uint8_t* src_row = &src[src_y * src_bytes_per_row];
         const int32_t dest_y_offset = dest_y * dest_bytes_per_row;
         // y-wrap handling removed
 
@@ -126,7 +187,18 @@ static void bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit_fliprot(
             if (!WITHIN(src_x, src_begin_x, src_end_x - 1)) {
                 break;  // x-wrap handling removed
             }
-            const GColor src_color = *(GColor8 *) &src[src_y_offset + src_x];
+
+            // TODO try optimisation: function pointer, or duplicate this whole function?
+            GColor src_color;
+            if (palette != NULL) {
+                const size_t src_byte = src_row[(src_x << src_pixel_bits_log2) >> 3u];  // >>3 == /8
+                const uint8_t max_pixel_index = 8 - src_pixel_bits;
+                const uint8_t pixel_index_in_byte = max_pixel_index - ((src_x << src_pixel_bits_log2) & 7u); // &7 == %8
+                const uint8_t src_color_index = (src_byte >> pixel_index_in_byte) & ~(uint8_t)(0xffu << src_pixel_bits);
+                src_color = palette[src_color_index];
+            } else {  // 8-bit
+                src_color = *(GColor8 *) &src_row[src_x];
+            }
 
             // alpha blending removed; its either transparent or opaque
             if (src_color.a > 1) {
@@ -143,10 +215,6 @@ static void bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit_fliprot(
             dest_x += dest_incr_x;
             ++src_x;
         }
-        // TODO is this method of looping actually faster?
-        // for (int32_t j = 0; j < (dest_end_x - dest_begin_x); ++j, ++src_x) {
-        //     const int32_t dest_x = (flags & OpFlag_FlipHorz) ? dest_end_x - j : dest_begin_x + j;
-        // }
     }
 }
 
@@ -161,13 +229,13 @@ static void bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit_fliprot(
     so this function can draw outside of the given rect_ref.
 
     Current limitations TODO:
-        - only supports 8bit GBitmaps (i.e. "memoryFormat": "8Bit" in package.json)
-        - only supports 8bit frame buffers (i.e. colour screens Basalt/Emery/Gabbro)
+        - doesn't support GBitmapFormat1Bit
+        - only supports 8bit framebuffers (i.e. colour screens Basalt/Emery/Gabbro)
+        - doesn't work on Chalk (packed GBitmapFormat8BitCircular framebuffer not supported)
         - all FliprotFlags are applied pivoted around the centre of the display
         - doesn't account for rotating the bitmap off the edge of the screen
         - doesn't "tile" src_bitmap if rect_ref is bigger than src_bitmap's bounds
         - no alpha blending; treats every pixel as fully transparent or opaque
-        - doesn't work on Chalk (packed GBitmapFormat8BitCircular framebuffer not supported)
 
     Based on PebbleOs/src/fw/applib/graphics' graphics_draw_bitmap_in_rect()
 */
@@ -197,9 +265,10 @@ void fliprot_draw_bitmap(
         // Calculate the offset of src_bitmap to use
         const GPoint src_offset = gpoint_sub(rect.origin, unclipped_origin);
 
-        bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit_fliprot(dest_bitmap, src_bitmap, rect, src_offset, flags);
+        bitblt_fliprot(dest_bitmap, src_bitmap, rect, src_offset, flags);
 
-        // removed "mark the region where the bitmap was drawn as dirty"
+        // removed "mark the region where the bitmap was drawn as dirty";
+        // because graphics_release_frame_buffer() marks the entire thing dirty
     }
 
     graphics_release_frame_buffer(ctx, dest_bitmap);

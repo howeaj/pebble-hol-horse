@@ -247,14 +247,13 @@ static void set_bitmap_colors(const Config* config) {
     gbitmap_set_color(s_face_real, 2, GColorLightGray);  //  33% opaque
     gbitmap_set_color(s_face_real, 3, bgColor);  // background
 
-    // TODO these are 8bit, not palletised...
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
         gbitmap_set_color(s_hour_hand_bitmaps[i], 0, fgColor);
-        gbitmap_set_color(s_hour_hand_bitmaps[i], 1, bgColor);
+        gbitmap_set_color(s_hour_hand_bitmaps[i], 3, bgColor);
     }
     for (size_t i = 0; i < ARRAY_LEN(s_min_hand_bitmaps); i++) {
         gbitmap_set_color(s_min_hand_bitmaps[i], 0, fgColor);
-        gbitmap_set_color(s_min_hand_bitmaps[i], 1, bgColor);
+        gbitmap_set_color(s_min_hand_bitmaps[i], 3, bgColor);
     }
 }
 
