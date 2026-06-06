@@ -244,7 +244,7 @@ static void set_bitmap_colors(const Config* config) {
 
     gbitmap_set_color(s_face, 0, bgColor);
     gbitmap_set_color(s_face, 1, fgColor);
-    // gbitmap_set_color(s_face, 2, GColorLightGrey);
+    gbitmap_set_color(s_face, 2, (bgColor.argb == GColorBlack.argb) ? GColorDarkGray : GColorLightGray);
     gbitmap_set_color(s_face, 3, config->minuteColor);
     gbitmap_set_color(s_face, 4, config->hourColor);
 
