@@ -40,8 +40,15 @@
             { "label": "Month Name",   "value": "4" },
             { "label": "Month Number", "value": "5" },
             { "label": "Steps",        "value": "6" },
-            { "label": "Sleep",        "value": "7" }
+            { "label": "Sleep",        "value": "7" },
+            { "label": "Timezone",     "value": "8" }
           ]
+        },
+        { "type": "slider", "messageKey": "comp1Value", "group": "comp1", "label": "UTC offset",
+          "defaultValue": 0,
+          "min": -12,
+          "max": 14,
+          "step": 1
         },
         { "type": "color", "group": "comp1", "messageKey": "comp1FgColor", "label": "Foreground", "defaultValue": "aa00aa" },
         { "type": "color", "group": "comp1", "messageKey": "comp1BgColor", "label": "Background", "defaultValue": "00ff00" }

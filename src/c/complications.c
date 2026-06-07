@@ -42,9 +42,21 @@ typedef struct Complication {
     ComplicationType type;
     GBitmap* bitmap;
     char text[MAX_TEXT_LEN];
-    uint32_t value;
     GColor color1;  // main
     GColor color2;  // shadow
+
+    /* `value` has a different meaning for each ComplicationType:
+        ComplicationType_Tick:      N/A (bitmap only)
+        ComplicationType_Battery:   Remaining % (0-99), set by update_complication_display_value()
+        ComplicationType_DayName:   N/A (text only)
+        ComplicationType_DayNum:    N/A (text only)
+        ComplicationType_MonthName: N/A (text only)
+        ComplicationType_MonthNum:  N/A (text only)
+        ComplicationType_Steps:     isDistance (0 or 1), set by complications_configure()
+        ComplicationType_Sleep:     isRestful (0 or 1), set by complications_configure()
+        ComplicationType_Timezone:  UTC offset (-12 to +14), set by complications_configure()
+    */
+    int32_t value;
 
     ComplicationState state;
     GRect rect;
@@ -278,10 +290,9 @@ static bool is_health_metric_accessible(HealthMetric metric) {
     return mask & HealthServiceAccessibilityMaskAvailable;
 }
 
-// Get the value for the steps complication, in either steps or metres
-static uint32_t get_steps_value(void) {
+// Return the value for the steps complication, in either steps or metres
+static uint32_t get_steps_value(bool is_distance) {
     uint32_t val = 0;
-    const bool is_distance = false;  // TODO get_config().steps_is_distance
     if (is_distance) {
         if (is_health_metric_accessible(HealthMetricWalkedDistanceMeters)) {
             val = (uint32_t)health_service_sum_today(HealthMetricWalkedDistanceMeters);
@@ -295,10 +306,9 @@ static uint32_t get_steps_value(void) {
     return val;
 }
 
-// Get the value for the sleep complication, either normal or restful
-static uint32_t get_sleep_seconds(void) {
+// Return the value for the sleep complication, either normal or restful
+static uint32_t get_sleep_seconds(bool is_restful) {
     uint32_t val = 0;
-    const bool is_restful = false;  // TODO get_config().sleep_is_restful
     const HealthMetric metric = is_restful ? HealthMetricSleepRestfulSeconds : HealthMetricSleepSeconds;
     if (is_health_metric_accessible(metric)) {
         val = (uint32_t)health_service_sum_today(metric);
@@ -306,7 +316,8 @@ static uint32_t get_sleep_seconds(void) {
     return val;
 }
 
-static void update_complication_value(Complication* complication) {
+// Update `complication`'s display value, which could be complication->text, value and/or bitmap
+static void update_complication_display_value(Complication* complication) {
 #if DEBUG_COMPL_VAL
     static time_t now = 0;
     now += SECONDS_PER_DAY * (DEBUG_COMPL_VAL - 1);
@@ -347,7 +358,7 @@ static void update_complication_value(Complication* complication) {
             break;
         }
         case ComplicationType_Steps: {
-            const uint32_t val = get_steps_value();
+            const uint32_t val = get_steps_value(complication->value == 1);
             if (val < 10000) {  // kilo-units, 1 decimal place
                 const int len = snprintf(complication->text, MAX_TEXT_LEN, "%u.%uk",
                                          (uint8_t)(val / 1000), (uint8_t)((val % 1000) / 100));
@@ -359,14 +370,20 @@ static void update_complication_value(Complication* complication) {
             break;
         }
         case ComplicationType_Sleep: {
-            const time_t seconds = (time_t)get_sleep_seconds();
-            struct tm * gmtime (const time_t * timer);
+            const time_t seconds = (time_t)get_sleep_seconds(complication->value == 1);
+            struct tm * gmtime(const time_t * timer);
             const int len = snprintf(complication->text, MAX_TEXT_LEN, "%uh%u%u",
                 (uint8_t)(seconds / SECONDS_PER_HOUR),
                 (uint8_t)(((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE) / 10),
                 (uint8_t)(((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE) % 10)
             );
             ASSERT((len == 4) || (len == 5));
+            break;
+        }
+        case ComplicationType_Timezone: {
+            time_t now_offset = now + (complication->value * SECONDS_PER_HOUR);
+            strftime(complication->text, MAX_TEXT_LEN, "%H", gmtime(&now_offset));
+            // TODO append timezone string
             break;
         }
         default: {
@@ -379,6 +396,7 @@ static void update_complication_value(Complication* complication) {
 static void update_complication_size(Complication* complication) {
     switch (complication->type) {
         case ComplicationType_Sleep:
+        case ComplicationType_Timezone:
             complication->rect.size = (GSize){60, 25};
             break;
         case ComplicationType_Battery:
@@ -498,7 +516,7 @@ static void complication_start(uint32_t index, bool avoid_second_hand) {
     ASSERT(index < NUM_COMPLICATIONS);
     Complication* const complication = &complications[index];
 
-    update_complication_value(complication);
+    update_complication_display_value(complication);
     update_complication_size(complication);
 
     ///////// Choose starting location
@@ -663,6 +681,9 @@ void complications_configure(const Config* config){
     complications[0].color2 = config->comp1BgColor;
     complications[1].color2 = config->comp2BgColor;
     complications[2].color2 = config->comp3BgColor;
+    complications[0].value = config->comp1Value;
+    complications[1].value = config->comp2Value;
+    complications[2].value = config->comp3Value;
 
     complications_update();
 }

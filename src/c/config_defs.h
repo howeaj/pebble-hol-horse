@@ -41,6 +41,9 @@
     MACRO(ENUM,  ComplicationMode,    comp1Mode,                    ComplicationMode_OnActivate) \
     MACRO(ENUM,  ComplicationMode,    comp2Mode,                    ComplicationMode_OnActivate) \
     MACRO(ENUM,  ComplicationMode,    comp3Mode,                    ComplicationMode_OnActivate) \
+    MACRO(INT,   int8_t,              comp1Value,                   0) \
+    MACRO(INT,   int8_t,              comp2Value,                   0) \
+    MACRO(INT,   int8_t,              comp3Value,                   0) \
 /* end of X_CONFIG_OPTIONS */
 
 
@@ -51,9 +54,9 @@ typedef enum ComplicationType {
     ComplicationType_DayNum = 3,
     ComplicationType_MonthName = 4,
     ComplicationType_MonthNum = 5,
-    ComplicationType_Steps = 6,
-    ComplicationType_Sleep = 7,
-    // TODO ComplicationType_Timezone
+    ComplicationType_Steps = 6,  // value = isDistance
+    ComplicationType_Sleep = 7, // value = isRestful
+    ComplicationType_Timezone = 8,  // value = offsetHours
     // TODO temperature
     // TODO weather?
     // TODO bluetooth?

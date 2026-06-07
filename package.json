@@ -33,7 +33,10 @@
       "comp3Type",
       "comp1Mode",
       "comp2Mode",
-      "comp3Mode"
+      "comp3Mode",
+      "comp1Value",
+      "comp2Value",
+      "comp3Value"
     ],
     "resources": {
       "media": [
