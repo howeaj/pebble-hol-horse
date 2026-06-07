@@ -9,7 +9,7 @@
 #include <pebble.h>
 
 
-void mark_root_window_dirty(void);
+void mark_root_window_dirty(bool full_redraw);
 
 
 #if DEBUG

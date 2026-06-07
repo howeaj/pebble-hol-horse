@@ -1,5 +1,10 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
+/* TODO
+    Double redraw on minute tick
+    Text complication, option to go below hand instead of avoid, option font
+*/
+
 #include "complications.h"
 
 #include "analogue.h"
@@ -33,6 +38,7 @@ typedef enum ComplicationState {
 #define MAX_TEXT_LEN (6)
 
 typedef struct Complication {
+    ComplicationMode mode;
     ComplicationType type;
     GBitmap* bitmap;
     char text[MAX_TEXT_LEN];
@@ -65,6 +71,7 @@ static inline bool complication_is_text(const Complication* complication) {
 }
 
 /// Return how many pixels upwards the complication will move in its lifetime
+/// TODO not really based on index, now that 2nd/3rd index can be the first to appear and/or not floating at all
 static int16_t floatup_distance(uint32_t index) {
     const int16_t num_frames = (int16_t)(
         s_frames_per_state[ComplicationState_On]
@@ -90,8 +97,6 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
     switch (complication->state) {
 
         case ComplicationState_Off:
-            // one last full-screen refresh to restore any clipped hands
-            mark_root_window_dirty();
             *draw = false;
             break;
 
@@ -114,6 +119,7 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
             }
             break;
 
+        // TODO mask the dissolve and translate to the bitmap's non-clear pixels
         case ComplicationState_Disappear:
             // stop drawing the bitmap; "dissolve in" a background-coloured rect on top of it
             dissolve_rect(ctx, rect_with_shadow(complication->rect), config_get()->bgColor);
@@ -170,7 +176,7 @@ static void draw_text_with_shadow(GContext* ctx, const char* text, GRect rect,
 }
 
 // Perform the graphics draw operation to draw `complication` in `rect` with the given `color`s
-static void graphics_draw_complication(GContext* ctx, Complication* complication,
+static void graphics_draw_complication(GContext* ctx, const Complication* complication,
                                        GRect rect, GColor color1, GColor color2) {
     if (complication_is_text(complication)) {
         draw_text_with_shadow(ctx, complication->text, rect,
@@ -183,12 +189,15 @@ static void graphics_draw_complication(GContext* ctx, Complication* complication
     }
 }
 
-void complication_draw(Layer* layer, GContext* ctx, uint32_t index, bool is_full_redraw) {
-    UNUSED(layer);
-    Complication* const complication = &complications[index];
-    if (complication->state == ComplicationState_Off) {
-        return;
-    }
+static void draw_complication(GContext* ctx, const Complication* complication) {
+#if DEBUG_SHOW_COMPL_RECTS
+    graphics_context_set_fill_color(ctx, GColorRed);
+    graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
+#endif // DEBUG_SHOW_COMPL_RECTS
+    graphics_draw_complication(ctx, complication, complication->rect, complication->color1, complication->color2);
+}
+
+static void complication_draw_animated(GContext* ctx, Complication* complication, bool is_full_redraw) {
 
     // Save the previous bounds for erasure, then undo any shake
     const GRect prev_rect = complication->rect;
@@ -220,18 +229,30 @@ void complication_draw(Layer* layer, GContext* ctx, uint32_t index, bool is_full
     }
 
     if (draw) {
-#if DEBUG_SHOW_COMPL_RECTS
-        graphics_context_set_fill_color(ctx, GColorRed);
-        graphics_fill_rect(ctx, complication->rect, 0, GCornerNone);
-#endif // DEBUG_SHOW_COMPL_RECTS
-        graphics_draw_complication(ctx, complication, complication->rect, complication->color1, complication->color2);
+        draw_complication(ctx, complication);
     }
 }
 
-static int8_t num_active_complications(void) {
+void complications_draw(Layer* layer, GContext* ctx, bool is_full_redraw) {
+    UNUSED(layer);
+    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        Complication* const complication = &complications[i];
+        if ((complication->mode == ComplicationMode_OnAlways) && is_full_redraw) {
+            draw_complication(ctx, complication);
+        } else if ((complication->mode == ComplicationMode_OnActivate)
+                && (complication->state != ComplicationState_Off))
+        {
+            complication_draw_animated(ctx, complication, is_full_redraw);
+        }
+    }
+}
+
+static int8_t num_animating_complications(void) {
     int8_t count = 0;
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        if (complications[i].state != ComplicationState_Off) {
+        if ((complications[i].state != ComplicationState_Off)
+                && (complications[i].mode == ComplicationMode_OnActivate))
+        {
             count++;
         }
     }
@@ -239,11 +260,14 @@ static int8_t num_active_complications(void) {
 }
 
 static void complications_nextframe(void* context) {
-    mark_root_window_dirty();
-    if (num_active_complications() > 0) {
+    if (num_animating_complications() > 0) {
+        mark_root_window_dirty(false);
         s_animation_timer = app_timer_register(MS_PER_FRAME, complications_nextframe, NULL);
     } else {
+        LOG("LAST COMPLICATIONS_NEXTFRAME");
         s_animation_timer = NULL;
+        complications_update();
+        mark_root_window_dirty(true);
     }
 }
 
@@ -380,6 +404,7 @@ static void update_complication_size(Complication* complication) {
 #define GAP_NUM_SEGMENTS (60)
 
 // Populate fallback gap array with the current segments containing hands or complications
+// WONTDO Ignore deactivated complications
 static void populate_gap_array(bool is_segment_full[GAP_NUM_SEGMENTS]) {
     // This function assumes the first two complications have been placed
     int32_t full_angles[5];
@@ -453,22 +478,23 @@ static int32_t find_biggest_gap(void) {
 static void complication_activate(uint32_t index) {
     ASSERT(index < NUM_COMPLICATIONS);
     Complication* const complication = &complications[index];
+    if (complication->mode == ComplicationMode_OnActivate) {
 
-    #if DEBUG_SHOW_COMPL_RECTS
+#if DEBUG_SHOW_COMPL_RECTS
         complication->rect.size.h += floatup_distance(index);
         complication->rect.origin.y -= floatup_distance(index);
-    #endif // DEBUG_SHOW_COMPL_RECTS
+#endif // DEBUG_SHOW_COMPL_RECTS
 
-    complication->state = ComplicationState_Appear;
-    complication->animation_counter = s_frames_per_state[complication->state];
-    complication->shake_offset = (GPoint) {0, 0};
-
-    if (s_animation_timer == NULL) {
-        complications_nextframe(NULL);
+        complication->state = ComplicationState_Appear;
+        complication->animation_counter = s_frames_per_state[complication->state];
+        complication->shake_offset = (GPoint) {0, 0};
+        if (s_animation_timer == NULL) {
+            complications_nextframe(NULL);
+        }
     }
 }
 
-void complication_start(uint32_t index) {
+static void complication_start(uint32_t index, bool avoid_second_hand) {
     ASSERT(index < NUM_COMPLICATIONS);
     Complication* const complication = &complications[index];
 
@@ -487,10 +513,13 @@ void complication_start(uint32_t index) {
 
     // Start searching from the previous complication's angle
     // TODO starting from 0 can waste some space; start from the hour hand? start from a random hand?
+    // WONTDO handle comp2 disabled but comp1 and comp3 enabled
     int32_t start_angle_deg = 0;
     if (index > 0) {
         const Complication* const other = &complications[index - 1];
-        start_angle_deg = TRIGANGLE_TO_DEG(other->angle + MIN_TO_TRIGANGLE(4)) % 360;
+        if (other->mode != ComplicationMode_Off) {
+            start_angle_deg = TRIGANGLE_TO_DEG(other->angle + MIN_TO_TRIGANGLE(4)) % 360;
+        }
     }
 
     // Search for an angle with enough space to fit the complication for its whole life (total_size)
@@ -537,8 +566,9 @@ void complication_start(uint32_t index) {
         );
         // TODO the hour centre is also different
         // TODO if we're close to a minute, the hour/min hands are going to move...
-        if (
-            (ABSDIFF_WRAP(arc_centre_angle, second_centre,    TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(2.5) + arc) / 2))
+        if ((avoid_second_hand
+             && (ABSDIFF_WRAP(arc_centre_angle, second_centre, TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(2.5) + arc) / 2))
+            )
          || (ABSDIFF_WRAP(arc_centre_angle, hand_angles.min,  TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(3.5) + arc) / 2))
          || (ABSDIFF_WRAP(arc_centre_angle, hand_angles.hour, TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(5.5) + arc) / 2))
         ) {
@@ -550,9 +580,13 @@ void complication_start(uint32_t index) {
         // TODO get closer by taking into account the floating movement
         for (uint32_t i = 0; i < index; i++) {
             const Complication* const other = &complications[i];
-            if (ABSDIFF_WRAP(arc_centre_angle, other->angle, TRIG_MAX_ANGLE) < ((other->arc + arc)/2 - DEG_TO_TRIGANGLE(15))) {
-                overlaps_other_complication = true;
-                break;
+            if (other->mode != ComplicationMode_Off) {
+                if (ABSDIFF_WRAP(arc_centre_angle, other->angle, TRIG_MAX_ANGLE)
+                        < (((other->arc + arc) / 2) - DEG_TO_TRIGANGLE(15)))
+                {
+                    overlaps_other_complication = true;
+                    break;
+                }
             }
         }
         if (overlaps_other_complication) {
@@ -584,6 +618,26 @@ void complication_start(uint32_t index) {
     complication_activate(index);
 }
 
+void complication_start_next(void) {
+    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        Complication* const complication = &complications[i];
+        if ((complication->mode == ComplicationMode_OnActivate) && (complication->state == ComplicationState_Off)) {
+            complication_start(i, true);
+            break;
+        }
+    }
+}
+
+// Update any always-on complications; intended to be called on each minute tick
+void complications_update(void) {
+    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        Complication* const complication = &complications[i];
+        if (complication->mode == ComplicationMode_OnAlways) {
+            complication_start(i, false);
+        }
+    }
+}
+
 void complications_stop(void) {
     // assumes all complications are already on
     uint32_t delay = 0;
@@ -597,15 +651,20 @@ void complications_stop(void) {
 }
 
 void complications_configure(const Config* config){
+    complications[0].mode = config->comp1Mode;
+    complications[1].mode = config->comp2Mode;
+    complications[2].mode = config->comp3Mode;
     complications[0].type = config->comp1Type;
-    complications[0].color1 = config->comp1FgColor;
-    complications[0].color2 = config->comp1BgColor;
     complications[1].type = config->comp2Type;
-    complications[1].color1 = config->comp2FgColor;
-    complications[1].color2 = config->comp2BgColor;
     complications[2].type = config->comp3Type;
+    complications[0].color1 = config->comp1FgColor;
+    complications[1].color1 = config->comp2FgColor;
     complications[2].color1 = config->comp3FgColor;
+    complications[0].color2 = config->comp1BgColor;
+    complications[1].color2 = config->comp2BgColor;
     complications[2].color2 = config->comp3BgColor;
+
+    complications_update();
 }
 
 void complications_init(void) {

@@ -30,14 +30,17 @@
     MACRO(COLOR, GColor,              hourColor,                    GColorBlack) \
     MACRO(COLOR, GColor,              minuteColor,                  GColorBlack) \
     MACRO(COLOR, GColor,              comp1FgColor,                 GColorPurple) \
-    MACRO(COLOR, GColor,              comp1BgColor,                 GColorGreen) \
     MACRO(COLOR, GColor,              comp2FgColor,                 GColorPurple) \
-    MACRO(COLOR, GColor,              comp2BgColor,                 GColorGreen) \
     MACRO(COLOR, GColor,              comp3FgColor,                 GColorPurple) \
+    MACRO(COLOR, GColor,              comp1BgColor,                 GColorGreen) \
+    MACRO(COLOR, GColor,              comp2BgColor,                 GColorGreen) \
     MACRO(COLOR, GColor,              comp3BgColor,                 GColorGreen) \
     MACRO(ENUM,  ComplicationType,    comp1Type,                    ComplicationType_Tick) \
     MACRO(ENUM,  ComplicationType,    comp2Type,                    ComplicationType_Tick) \
     MACRO(ENUM,  ComplicationType,    comp3Type,                    ComplicationType_Tick) \
+    MACRO(ENUM,  ComplicationMode,    comp1Mode,                    ComplicationMode_OnActivate) \
+    MACRO(ENUM,  ComplicationMode,    comp2Mode,                    ComplicationMode_OnActivate) \
+    MACRO(ENUM,  ComplicationMode,    comp3Mode,                    ComplicationMode_OnActivate) \
 /* end of X_CONFIG_OPTIONS */
 
 
@@ -56,3 +59,9 @@ typedef enum ComplicationType {
     // TODO bluetooth?
     // Heartrate not supported because PR2 doesn't have one
 } ComplicationType;
+
+typedef enum ComplicationMode {
+    ComplicationMode_Off = 0,
+    ComplicationMode_OnActivate = 1,
+    ComplicationMode_OnAlways = 2,
+} ComplicationMode;

@@ -14,7 +14,6 @@
         Shake to activate
         Touch to activate
         Low-power-mode under 20%
-        Colours
 */
 
 #include <pebble.h>
@@ -152,15 +151,18 @@ static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
     if (should_show_seconds()) {
         s_num_seconds_shown = MIN(MAX_NUM_SECONDS, s_num_seconds_shown + 1);
         ASSERT(s_num_seconds_shown > 0);
-        complication_start(s_num_seconds_shown - 1);
+        complication_start_next();
     } else {
+        if (units_changed & MINUTE_UNIT) {
+            complications_update();
+        }
         if (s_num_seconds_shown > 0) {
             complications_stop();
             s_num_seconds_shown = 0;
         }
     }
 
-    s_is_full_redraw = true;
+    mark_root_window_dirty(true);
 }
 
 #if DEBUG_DRAW_FACE
@@ -229,9 +231,7 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
         // }
     }
 
-    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        complication_draw(layer, ctx, i, s_is_full_redraw);
-    }
+    complications_draw(layer, ctx, s_is_full_redraw);
 
     s_is_full_redraw = false;
 
@@ -303,14 +303,16 @@ static bool should_show_seconds(void) {
     return s_active_ticks_remaining > 0;
 }
 
-void mark_root_window_dirty(void) {
+void mark_root_window_dirty(bool full_redraw) {
     layer_mark_dirty(window_get_root_layer(s_main_window));
+    if (full_redraw) {
+        s_is_full_redraw = true;
+    }
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     // TRACE("tick_handler; s_active_ticks_remaining = %d", s_active_ticks_remaining);
     handle_tick(tick_time, units_changed);
-    mark_root_window_dirty();
 
     if (s_active_ticks_remaining == 0) {
         LOG("Schedule minute updates");
@@ -350,8 +352,7 @@ static void fast_time_handler(void* context) {
 static void new_config_handler(const Config* config) {
     set_bitmap_colors(config);
     complications_configure(config);
-    mark_root_window_dirty();
-    s_is_full_redraw = true;
+    mark_root_window_dirty(true);
 }
 
 static void main_window_load(Window *window) {

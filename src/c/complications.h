@@ -10,8 +10,9 @@
 #define NUM_COMPLICATIONS (3)
 
 
-void complication_draw(Layer* layer, GContext* ctx, uint32_t index, bool is_full_redraw);
-void complication_start(uint32_t index);
+void complications_draw(Layer* layer, GContext* ctx, bool is_full_redraw);
+void complication_start_next(void);
+void complications_update(void);
 void complications_stop(void);
 void complications_configure(const Config* config);
 void complications_init(void);

@@ -33,14 +33,13 @@ var clay = new Clay(clayConfig, function(minified) {
                 // This should match the defaults in config.json and config.c
                 setColor('bgColor',      0xffffff);
                 setColor('fgColor',      0x000000);
-                setColor('hourColor',    0xffffff);
-                setColor('minuteColor',  0xffffff);
-                setColor('bgColor',      0xffffff);
+                setColor('hourColor',    0x000000);
+                setColor('minuteColor',  0x000000);
                 setColor('comp1FgColor', 0xaa00aa);
-                setColor('comp1BgColor', 0x00ff00);
                 setColor('comp2FgColor', 0xaa00aa);
-                setColor('comp2BgColor', 0x00ff00);
                 setColor('comp3FgColor', 0xaa00aa);
+                setColor('comp1BgColor', 0x00ff00);
+                setColor('comp2BgColor', 0x00ff00);
                 setColor('comp3BgColor', 0x00ff00);
                 break;
             case "The World":
@@ -49,10 +48,10 @@ var clay = new Clay(clayConfig, function(minified) {
                 setColor('hourColor',    0xffffff);
                 setColor('minuteColor',  0xffffff);
                 setColor('comp1FgColor', 0x00ff00);
-                setColor('comp1BgColor', 0xaa00aa);
                 setColor('comp2FgColor', 0x00ff00);
-                setColor('comp2BgColor', 0xaa00aa);
                 setColor('comp3FgColor', 0x00ff00);
+                setColor('comp1BgColor', 0xaa00aa);
+                setColor('comp2BgColor', 0xaa00aa);
                 setColor('comp3BgColor', 0xaa00aa);
                 break;
             case "Silver Chariot":
@@ -61,10 +60,10 @@ var clay = new Clay(clayConfig, function(minified) {
                 setColor('hourColor',    0x555555);
                 setColor('minuteColor',  0x555555);
                 setColor('comp1FgColor', 0x000000);
-                setColor('comp1BgColor', 0x555555);
                 setColor('comp2FgColor', 0x000000);
-                setColor('comp2BgColor', 0x555555);
                 setColor('comp3FgColor', 0x000000);
+                setColor('comp1BgColor', 0x555555);
+                setColor('comp2BgColor', 0x555555);
                 setColor('comp3BgColor', 0x555555);
                 break;
             // case "Star Platinum":

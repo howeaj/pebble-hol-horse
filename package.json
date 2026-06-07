@@ -23,19 +23,22 @@
       "hourColor",
       "minuteColor",
       "comp1FgColor",
-      "comp1BgColor",
       "comp2FgColor",
-      "comp2BgColor",
       "comp3FgColor",
+      "comp1BgColor",
+      "comp2BgColor",
       "comp3BgColor",
       "comp1Type",
       "comp2Type",
-      "comp3Type"
+      "comp3Type",
+      "comp1Mode",
+      "comp2Mode",
+      "comp3Mode"
     ],
     "resources": {
       "media": [
         {"type": "font", "file": "KomikaHand-BoldItalicSubscript.ttf", "name": "FONT_MANGA_22", "characterRegex": "[A-Zdhkmnrst0-9%.]"},
-        {"type": "bitmap", "file": "app_icon.png",  "name": "APP_ICON", "menuIcon": true},
+        {"type": "bitmap", "file": "app_icon.png", "name": "APP_ICON", "menuIcon": true},
         {"type": "bitmap", "file": "face.png", "name": "FACE_REAL"},
         {"type": "bitmap", "file": "tick.png", "name": "TICK"},
         {"type": "bitmap", "memoryFormat": "2BitPalette", "file": "hand_hour_0.png",    "name": "HAND_HOUR_0"},
