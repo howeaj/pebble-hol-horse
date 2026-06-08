@@ -50,3 +50,10 @@ static inline void string_to_upper(char* str, size_t n) {
         str[i] = toupper(str[i]);
     }
 }
+
+// in-place string to lower case
+static inline void string_to_lower(char* str, size_t n) {
+    for (size_t i = 0; (i < n) && str[i]; i++){
+        str[i] = tolower(str[i]);
+    }
+}

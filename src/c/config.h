@@ -11,7 +11,7 @@
 
 #pragma pack(push, 1)  // prevent unpredictable format changes
 
-#define CONFIG_STRUCT_MEMBER(_conftype, _ctype, _message_key, _default) _ctype _message_key;
+#define CONFIG_STRUCT_MEMBER(_conftype, _ctype, _arrsuffix, _message_key, _default) _ctype _message_key _arrsuffix;
 typedef struct Config {
     X_CONFIG_OPTIONS(CONFIG_STRUCT_MEMBER)
 } Config;

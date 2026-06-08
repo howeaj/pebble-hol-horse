@@ -19,7 +19,7 @@
 #include "macros.h"
 #include "persist_keys.h"
 
-#define CONFIG_STRUCT_DEFAULT(_conftype, _ctype, _message_key, _default) ._message_key = _default,
+#define CONFIG_STRUCT_DEFAULT(_conftype, _ctype, _arrsuffix, _message_key, _default) ._message_key = _default,
 static Config s_config = {
     X_CONFIG_OPTIONS(CONFIG_STRUCT_DEFAULT)
 };
@@ -62,24 +62,67 @@ static void local_persist_save(void) {
  Private methods; Receive config from phone
 ******************************************************************************/
 
-#define RECEIVE_CONFIG(message_key, convert) MACRO_START \
+#define RECEIVE_CONFIG(message_key, convert, tuple_type, _length) MACRO_START \
     const Tuple *tuple = dict_find(iter, MESSAGE_KEY_##message_key); \
     if (tuple) { \
-        s_config.message_key = convert; \
+        if ((tuple->type == tuple_type) && (tuple->length == _length)) { \
+            s_config.message_key = convert; \
+        } else { \
+            LOG_ERR("ERR %u %u: " #message_key, tuple->type, tuple->length); \
+        } \
     } else { \
-        LOG("ERR: " #message_key); \
+        LOG("MISSING: " #message_key); \
     } \
 MACRO_END
-#define RECEIVE_CONFIG_BOOL(message_key) RECEIVE_CONFIG(message_key, (tuple->value->int32 == 1))
-#define RECEIVE_CONFIG_COLOR(message_key) RECEIVE_CONFIG(message_key, GColorFromHEX(tuple->value->int32))
-#define RECEIVE_CONFIG_INT(message_key) RECEIVE_CONFIG(message_key, tuple->value->int32)
-// A hack to work around https://github.com/pebble-dev/clay/issues/28. Only interprets the first digit.
-#define RECEIVE_CONFIG_ENUM(message_key) RECEIVE_CONFIG(message_key, (tuple->value->int32 - '0'))
+
+// Clay sends basic values as int32
+#define RECEIVE_CONFIG_INT32(message_key, convert) RECEIVE_CONFIG(message_key, convert, TUPLE_INT, 4)
+#define RECEIVE_CONFIG_INT(message_key) RECEIVE_CONFIG_INT32(message_key, tuple->value->int32)
+#define RECEIVE_CONFIG_BOOL(message_key) RECEIVE_CONFIG_INT32(message_key, (tuple->value->int32 == 1))
+#define RECEIVE_CONFIG_COLOR(message_key) RECEIVE_CONFIG_INT32(message_key, GColorFromHEX(tuple->value->int32))
+
+// A hack to work around https://github.com/pebble-dev/clay/issues/28. Interprets a single numeric character as int.
+#define RECEIVE_CONFIG_CHAR_AS_INT(message_key, zero_char) \
+    RECEIVE_CONFIG(message_key, (((char*)tuple->value->cstring)[0] - zero_char), TUPLE_CSTRING, 2)
+#define RECEIVE_CONFIG_ENUM(message_key) RECEIVE_CONFIG_CHAR_AS_INT(message_key, '0')
+
+// Receive an int32 or cstring as a char
+#define RECEIVE_CONFIG_CHAR(message_key) MACRO_START \
+    const Tuple *tuple = dict_find(iter, MESSAGE_KEY_##message_key); \
+    if (tuple) { \
+        if ((tuple->type == TUPLE_INT) \
+                && (tuple->length == 4) \
+                && WITHIN(tuple->value->int32, INT8_MIN, INT8_MAX)) { \
+            s_config.message_key = (int8_t)tuple->value->int32; \
+        } else if ((tuple->type == TUPLE_CSTRING) \
+                && (tuple->length == 2)) { \
+            s_config.message_key = ((char*)tuple->value->cstring)[0]; \
+        } else { \
+            LOG("ERR %u %u %d: " #message_key, tuple->type, tuple->length, tuple->value->int32); \
+        } \
+    } else { \
+        LOG("MISSING: " #message_key); \
+    } \
+MACRO_END
+
+#define RECEIVE_CONFIG_STR(message_key) MACRO_START \
+    const Tuple *tuple = dict_find(iter, MESSAGE_KEY_##message_key); \
+    if (tuple) { \
+        if (tuple->type == TUPLE_CSTRING) { \
+            /* Note pebble's implementation of strncpy is non-standard and *does* ensure null-termination. */ \
+            strncpy(s_config.message_key, tuple->value->cstring, sizeof(s_config.message_key)); \
+        } else { \
+            LOG_ERR("ERR %d: " #message_key, tuple->type); \
+        } \
+    } else { \
+        LOG("MISSING: " #message_key); \
+    } \
+MACRO_END
 
 static void inbox_received_handler(DictionaryIterator *iter, void *context) {
     Config saved_config = s_config;
 
-#define CONFIG_STRUCT_RECEIVE(_conftype, _ctype, _message_key, _default) RECEIVE_CONFIG_##_conftype(_message_key);
+#define CONFIG_STRUCT_RECEIVE(_conftype, _ctype, _arrsuffix, _message_key, _default) RECEIVE_CONFIG_##_conftype(_message_key);
     X_CONFIG_OPTIONS(CONFIG_STRUCT_RECEIVE)
 #undef CONFIG_STRUCT_RECEIVE
 

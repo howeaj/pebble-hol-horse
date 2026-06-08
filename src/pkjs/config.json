@@ -41,7 +41,7 @@
             { "label": "Month Number",       "value": "5" },
             { "label": "Steps",              "value": "6" },
             { "label": "Sleep",              "value": "7" },
-            { "label": "Altername Timezone", "value": "8" }
+            { "label": "Alternate Timezone", "value": "8" }
           ]
         },
         { "type": "select", "messageKey": "comp1Value", "group": "comp1", "label": "Timezone",
@@ -76,6 +76,9 @@
             { "value": "[", "label": "UTC+14:00 (Kiritimati, Line Islands)" }
           ]
         },
+        { "type": "input", "group": "comp1", "messageKey": "comp1TimezoneText",
+          "label": "Timezone text (max 3 letters, no numbers)",
+          "defaultValue": "ALT" },
         { "type": "color", "group": "comp1", "messageKey": "comp1FgColor", "label": "Foreground", "defaultValue": "aa00aa" },
         { "type": "color", "group": "comp1", "messageKey": "comp1BgColor", "label": "Background", "defaultValue": "00ff00" }
       ]

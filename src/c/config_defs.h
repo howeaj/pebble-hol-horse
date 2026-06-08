@@ -18,32 +18,36 @@
 
 /** Macro table defining all config data.
 
-    - Conftype must match one of the RECEIVE_CONFIG_ options in config.c
-    - CType is the C-side storage type.
+    - Conftype is the last word in one of the RECEIVE_CONFIG_ options in config.c
+    - CType is the C-side storage type
+    - arrsuffix is the optional array indicator with length for the struct definition, e.g. [3]
     - Message key must match config.json and package.json, and be a valid C identifier.
     - Default value should match config.json.
 */
 #define X_CONFIG_OPTIONS(MACRO) \
-    /* conftype, C type,              message key,                  default */ \
-    MACRO(COLOR, GColor,              bgColor,                      GColorWhite) \
-    MACRO(COLOR, GColor,              fgColor,                      GColorBlack) \
-    MACRO(COLOR, GColor,              hourColor,                    GColorBlack) \
-    MACRO(COLOR, GColor,              minuteColor,                  GColorBlack) \
-    MACRO(COLOR, GColor,              comp1FgColor,                 GColorPurple) \
-    MACRO(COLOR, GColor,              comp2FgColor,                 GColorPurple) \
-    MACRO(COLOR, GColor,              comp3FgColor,                 GColorPurple) \
-    MACRO(COLOR, GColor,              comp1BgColor,                 GColorGreen) \
-    MACRO(COLOR, GColor,              comp2BgColor,                 GColorGreen) \
-    MACRO(COLOR, GColor,              comp3BgColor,                 GColorGreen) \
-    MACRO(ENUM,  ComplicationType,    comp1Type,                    ComplicationType_Tick) \
-    MACRO(ENUM,  ComplicationType,    comp2Type,                    ComplicationType_Tick) \
-    MACRO(ENUM,  ComplicationType,    comp3Type,                    ComplicationType_Tick) \
-    MACRO(ENUM,  ComplicationMode,    comp1Mode,                    ComplicationMode_OnActivate) \
-    MACRO(ENUM,  ComplicationMode,    comp2Mode,                    ComplicationMode_OnActivate) \
-    MACRO(ENUM,  ComplicationMode,    comp3Mode,                    ComplicationMode_OnActivate) \
-    MACRO(INT,   int8_t,              comp1Value,                   0) \
-    MACRO(INT,   int8_t,              comp2Value,                   0) \
-    MACRO(INT,   int8_t,              comp3Value,                   0) \
+    /* conftype, C type, arrsuffix, message key,       default */ \
+    MACRO(COLOR, GColor,,           bgColor,           GColorWhite) \
+    MACRO(COLOR, GColor,,           fgColor,           GColorBlack) \
+    MACRO(COLOR, GColor,,           hourColor,         GColorBlack) \
+    MACRO(COLOR, GColor,,           minuteColor,       GColorBlack) \
+    MACRO(COLOR, GColor,,           comp1FgColor,      GColorPurple) \
+    MACRO(COLOR, GColor,,           comp2FgColor,      GColorPurple) \
+    MACRO(COLOR, GColor,,           comp3FgColor,      GColorPurple) \
+    MACRO(COLOR, GColor,,           comp1BgColor,      GColorGreen) \
+    MACRO(COLOR, GColor,,           comp2BgColor,      GColorGreen) \
+    MACRO(COLOR, GColor,,           comp3BgColor,      GColorGreen) \
+    MACRO(ENUM,  ComplicationType,, comp1Type,         ComplicationType_Tick) \
+    MACRO(ENUM,  ComplicationType,, comp2Type,         ComplicationType_Tick) \
+    MACRO(ENUM,  ComplicationType,, comp3Type,         ComplicationType_Tick) \
+    MACRO(ENUM,  ComplicationMode,, comp1Mode,         ComplicationMode_OnActivate) \
+    MACRO(ENUM,  ComplicationMode,, comp2Mode,         ComplicationMode_OnActivate) \
+    MACRO(ENUM,  ComplicationMode,, comp3Mode,         ComplicationMode_OnActivate) \
+    MACRO(CHAR,  int8_t,,           comp1Value,        0) \
+    MACRO(CHAR,  int8_t,,           comp2Value,        0) \
+    MACRO(CHAR,  int8_t,,           comp3Value,        0) \
+    MACRO(STR,   char, [4],         comp1TimezoneText, "alt") \
+    MACRO(STR,   char, [4],         comp2TimezoneText, "alt") \
+    MACRO(STR,   char, [4],         comp3TimezoneText, "alt") \
 /* end of X_CONFIG_OPTIONS */
 
 

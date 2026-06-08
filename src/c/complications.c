@@ -381,10 +381,13 @@ static void update_complication_display_value(Complication* complication) {
             break;
         }
         case ComplicationType_Timezone: {
+            // The timezone text suffix is written to complication->text by complications_configure()
+            // so insert the hour digits before it.
             const int8_t utc_offset = complication->value - 'M';  // See how values are assigned in config.json
             const time_t now_offset = now + (utc_offset * SECONDS_PER_HOUR);
-            strftime(complication->text, MAX_TEXT_LEN, "%H", gmtime(&now_offset));
-            // TODO append timezone string
+            const int hour = gmtime(&now_offset)->tm_hour;
+            complication->text[0] = '0' + (hour / 10);
+            complication->text[1] = '0' + (hour % 10);
             break;
         }
         default: {
@@ -396,9 +399,9 @@ static void update_complication_display_value(Complication* complication) {
 
 static void update_complication_size(Complication* complication) {
     switch (complication->type) {
-        case ComplicationType_Sleep:
         case ComplicationType_Timezone:
-            complication->rect.size = (GSize){60, 25};
+        case ComplicationType_Sleep:
+            complication->rect.size = (GSize){65, 25};  // TODO optimise
             break;
         case ComplicationType_Battery:
         case ComplicationType_DayNum:
@@ -685,6 +688,16 @@ void complications_configure(const Config* config){
     complications[0].value = config->comp1Value;
     complications[1].value = config->comp2Value;
     complications[2].value = config->comp3Value;
+
+    // note pebble's strncpy is nonstandard and *does* ensure null-termination
+    STATIC_ASSERT((MAX_TEXT_LEN - 2) == 4); // TODO separate MAX_TZ_LEN 3
+    strncpy(&complications[0].text[2], config->comp1TimezoneText, MAX_TEXT_LEN - 2);
+    strncpy(&complications[1].text[2], config->comp2TimezoneText, MAX_TEXT_LEN - 2);
+    strncpy(&complications[2].text[2], config->comp3TimezoneText, MAX_TEXT_LEN - 2);
+    string_to_lower(&complications[0].text[2], MAX_TEXT_LEN - 2);
+    string_to_lower(&complications[1].text[2], MAX_TEXT_LEN - 2);
+    string_to_lower(&complications[1].text[2], MAX_TEXT_LEN - 2);
+    // TODO strip characters other than a-z
 
     complications_update();
 }

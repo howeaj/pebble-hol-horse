@@ -36,11 +36,14 @@
       "comp3Mode",
       "comp1Value",
       "comp2Value",
-      "comp3Value"
+      "comp3Value",
+      "comp1TimezoneText",
+      "comp2TimezoneText",
+      "comp3TimezoneText"
     ],
     "resources": {
       "media": [
-        {"type": "font", "file": "KomikaHand-BoldItalicSubscript.ttf", "name": "FONT_MANGA_22", "characterRegex": "[A-Zdhkmnrst0-9%.]"},
+        {"type": "font", "file": "KomikaHand-BoldItalicSubscript.ttf", "name": "FONT_MANGA_22", "characterRegex": "[A-Za-z0-9%.]"},
         {"type": "bitmap", "file": "app_icon.png", "name": "APP_ICON", "menuIcon": true},
         {"type": "bitmap", "file": "face.png", "name": "FACE_REAL"},
         {"type": "bitmap", "file": "tick.png", "name": "TICK"},
