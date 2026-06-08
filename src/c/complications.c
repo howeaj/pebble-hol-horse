@@ -381,7 +381,8 @@ static void update_complication_display_value(Complication* complication) {
             break;
         }
         case ComplicationType_Timezone: {
-            time_t now_offset = now + (complication->value * SECONDS_PER_HOUR);
+            const int8_t utc_offset = complication->value - 'M';  // See how values are assigned in config.json
+            const time_t now_offset = now + (utc_offset * SECONDS_PER_HOUR);
             strftime(complication->text, MAX_TEXT_LEN, "%H", gmtime(&now_offset));
             // TODO append timezone string
             break;

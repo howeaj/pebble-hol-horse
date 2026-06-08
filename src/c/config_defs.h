@@ -21,7 +21,7 @@
     - Conftype must match one of the RECEIVE_CONFIG_ options in config.c
     - CType is the C-side storage type.
     - Message key must match config.json and package.json, and be a valid C identifier.
-    - Default value must match config.json.
+    - Default value should match config.json.
 */
 #define X_CONFIG_OPTIONS(MACRO) \
     /* conftype, C type,              message key,                  default */ \
