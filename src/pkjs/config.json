@@ -25,9 +25,9 @@
         { "type": "select", "messageKey": "comp1Mode", "group": "comp1", "label": "When to show",
           "defaultValue": "1",
           "options": [
-            { "label": "Never",       "value": "0" },
+            { "label": "Always",      "value": "2" },
             { "label": "On Activity", "value": "1" },
-            { "label": "Always",      "value": "2" }
+            { "label": "Never",       "value": "0" }
           ]
         },
         { "type": "select", "messageKey": "comp1Type", "group": "comp1", "label": "Value",
@@ -78,7 +78,9 @@
         },
         { "type": "input", "group": "comp1", "messageKey": "comp1TimezoneText",
           "label": "Timezone text (max 3 letters, no numbers)",
-          "defaultValue": "ALT" },
+          "defaultValue": "ALT",
+          "attributes": {"maxlength": 3,  "pattern": "[a-zA-Z]*"}
+        },
         { "type": "color", "group": "comp1", "messageKey": "comp1FgColor", "label": "Foreground", "defaultValue": "aa00aa" },
         { "type": "color", "group": "comp1", "messageKey": "comp1BgColor", "label": "Background", "defaultValue": "00ff00" }
       ]

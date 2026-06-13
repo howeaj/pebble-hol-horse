@@ -697,7 +697,6 @@ void complications_configure(const Config* config){
     string_to_lower(&complications[0].text[2], MAX_TEXT_LEN - 2);
     string_to_lower(&complications[1].text[2], MAX_TEXT_LEN - 2);
     string_to_lower(&complications[1].text[2], MAX_TEXT_LEN - 2);
-    // TODO strip characters other than a-z
 
     complications_update();
 }
