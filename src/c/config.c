@@ -17,6 +17,7 @@
 #include <pebble.h>
 
 #include "macros.h"
+#include "misc.h"
 #include "persist_keys.h"
 
 #define CONFIG_STRUCT_DEFAULT(_conftype, _ctype, _arrsuffix, _message_key, _default) ._message_key = _default,
@@ -109,8 +110,7 @@ MACRO_END
     const Tuple *tuple = dict_find(iter, MESSAGE_KEY_##message_key); \
     if (tuple) { \
         if (tuple->type == TUPLE_CSTRING) { \
-            /* Note pebble's implementation of strncpy is non-standard and *does* ensure null-termination. */ \
-            strncpy(s_config.message_key, tuple->value->cstring, sizeof(s_config.message_key)); \
+            strscpy(s_config.message_key, tuple->value->cstring, sizeof(s_config.message_key)); \
         } else { \
             LOG_ERR("ERR %d: " #message_key, tuple->type); \
         } \

@@ -35,13 +35,13 @@ typedef enum ComplicationState {
     ComplicationState_MAX,  // end-of-enum sentinel
 } ComplicationState;
 
-#define MAX_TEXT_LEN (6)
+#define MAX_TEXT_SIZE (6)
 
 typedef struct Complication {
     ComplicationMode mode;
     ComplicationType type;
     GBitmap* bitmap;
-    char text[MAX_TEXT_LEN];
+    char text[MAX_TEXT_SIZE];
     GColor color1;  // main
     GColor color2;  // shadow
 
@@ -332,39 +332,39 @@ static void update_complication_display_value(Complication* complication) {
         }
         case ComplicationType_Battery: {
             complication->value = battery_state_service_peek().charge_percent;
-            const int len = snprintf(complication->text, MAX_TEXT_LEN, "%u%%", (uint8_t)MIN(99, complication->value));
+            const int len = snprintf(complication->text, MAX_TEXT_SIZE, "%u%%", (uint8_t)MIN(99, complication->value));
             ASSERT((len == 2) || (len == 3));  // suppress GCC -Wformat-truncation
             break;
         }
         case ComplicationType_DayName: {
-            strftime(complication->text, MAX_TEXT_LEN, "%a", localtime(&now));
-            string_to_upper(complication->text, MAX_TEXT_LEN);
+            strftime(complication->text, MAX_TEXT_SIZE, "%a", localtime(&now));
+            string_to_upper(complication->text, MAX_TEXT_SIZE);
             break;
         }
         case ComplicationType_DayNum: {
             const struct tm* now_tm = localtime(&now);
             // use snprintf to avoid leading 0
-            snprintf(complication->text, MAX_TEXT_LEN, "%u%s",
+            snprintf(complication->text, MAX_TEXT_SIZE, "%u%s",
                      now_tm->tm_mday, ordinal_indicator(now_tm->tm_mday));
             break;
         }
         case ComplicationType_MonthName: {
-            strftime(complication->text, MAX_TEXT_LEN, "%b", localtime(&now));
-            string_to_upper(complication->text, MAX_TEXT_LEN);
+            strftime(complication->text, MAX_TEXT_SIZE, "%b", localtime(&now));
+            string_to_upper(complication->text, MAX_TEXT_SIZE);
             break;
         }
         case ComplicationType_MonthNum: {
-            strftime(complication->text, MAX_TEXT_LEN, "%m", localtime(&now));
+            strftime(complication->text, MAX_TEXT_SIZE, "%m", localtime(&now));
             break;
         }
         case ComplicationType_Steps: {
             const uint32_t val = get_steps_value(complication->value == 1);
             if (val < 10000) {  // kilo-units, 1 decimal place
-                const int len = snprintf(complication->text, MAX_TEXT_LEN, "%u.%uk",
+                const int len = snprintf(complication->text, MAX_TEXT_SIZE, "%u.%uk",
                                          (uint8_t)(val / 1000), (uint8_t)((val % 1000) / 100));
                 ASSERT(len == 4);  // suppress GCC -Wformat-truncation
             } else {  // kilo-units, 0 decimal places
-                const int len = snprintf(complication->text, MAX_TEXT_LEN, "%uk", (uint8_t)MIN(99, val / 1000));
+                const int len = snprintf(complication->text, MAX_TEXT_SIZE, "%uk", (uint8_t)MIN(99, val / 1000));
                 ASSERT(len == 3);  // suppress GCC -Wformat-truncation
             }
             break;
@@ -372,7 +372,7 @@ static void update_complication_display_value(Complication* complication) {
         case ComplicationType_Sleep: {
             const time_t seconds = (time_t)get_sleep_seconds(complication->value == 1);
             struct tm * gmtime(const time_t * timer);
-            const int len = snprintf(complication->text, MAX_TEXT_LEN, "%uh%u%u",
+            const int len = snprintf(complication->text, MAX_TEXT_SIZE, "%uh%u%u",
                 (uint8_t)(seconds / SECONDS_PER_HOUR),
                 (uint8_t)(((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE) / 10),
                 (uint8_t)(((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE) % 10)
@@ -689,14 +689,13 @@ void complications_configure(const Config* config){
     complications[1].value = config->comp2Value;
     complications[2].value = config->comp3Value;
 
-    // note pebble's strncpy is nonstandard and *does* ensure null-termination
-    STATIC_ASSERT((MAX_TEXT_LEN - 2) == 4); // TODO separate MAX_TZ_LEN 3
-    strncpy(&complications[0].text[2], config->comp1TimezoneText, MAX_TEXT_LEN - 2);
-    strncpy(&complications[1].text[2], config->comp2TimezoneText, MAX_TEXT_LEN - 2);
-    strncpy(&complications[2].text[2], config->comp3TimezoneText, MAX_TEXT_LEN - 2);
-    string_to_lower(&complications[0].text[2], MAX_TEXT_LEN - 2);
-    string_to_lower(&complications[1].text[2], MAX_TEXT_LEN - 2);
-    string_to_lower(&complications[1].text[2], MAX_TEXT_LEN - 2);
+    STATIC_ASSERT(TZ_TEXT_SIZE <= MAX_TEXT_SIZE);
+    strscpy(&complications[0].text[2], config->comp1TimezoneText, TZ_TEXT_SIZE);
+    strscpy(&complications[1].text[2], config->comp2TimezoneText, TZ_TEXT_SIZE);
+    strscpy(&complications[2].text[2], config->comp3TimezoneText, TZ_TEXT_SIZE);
+    string_to_lower(&complications[0].text[2], TZ_TEXT_SIZE);
+    string_to_lower(&complications[1].text[2], TZ_TEXT_SIZE);
+    string_to_lower(&complications[1].text[2], TZ_TEXT_SIZE);
 
     complications_update();
 }

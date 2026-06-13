@@ -44,16 +44,7 @@ static inline int32_t angle_between_points(GPoint a, GPoint b) {
     return atan2_lookup(b.x - a.x, b.y - a.y);  // TODO why are x and y reversed ???????
 }
 
-// in-place string to upper case
-static inline void string_to_upper(char* str, size_t n) {
-    for (size_t i = 0; (i < n) && str[i]; i++){
-        str[i] = toupper(str[i]);
-    }
-}
 
-// in-place string to lower case
-static inline void string_to_lower(char* str, size_t n) {
-    for (size_t i = 0; (i < n) && str[i]; i++){
-        str[i] = tolower(str[i]);
-    }
-}
+void string_to_upper(char* str, size_t n);
+void string_to_lower(char* str, size_t n);
+ssize_t strscpy(char * restrict dst, const char * restrict src, size_t size);
