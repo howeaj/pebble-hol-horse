@@ -79,10 +79,34 @@ var clay = new Clay(clayConfig, function(minified) {
         }
     }
 
-    function toggleFaceText() {
-        var enableFaceText = this;
-        for (var item of clayConfig.getItemsByGroup("faceText")) {
-            if (enableFaceText.get()) {
+    // Handler for a Complication's "when to show" component, to hide/show the other components
+    function toggleCompMode() {
+        for (var item of clayConfig.getItemsByGroup(this.messageKey + "ToggleGroup")) {
+            if (this.get() === "0") {
+                item.hide();
+            } else {
+                item.show();
+            }
+        }
+
+        toggleCompType.call(clayConfig.getItemByMessageKey(this.messageKey.replace("Mode", "Type")))
+    }
+
+    // Handler for Complications' Types component, to hide/show specific comp type options
+    function toggleCompType() {
+        if (this.get() === "8") {
+            clayConfig.getItemById(this.messageKey + "TimezoneText").show();
+            clayConfig.getItemById(this.messageKey + "TimezoneValue").show();
+        } else {
+            clayConfig.getItemById(this.messageKey + "TimezoneText").hide();
+            clayConfig.getItemById(this.messageKey + "TimezoneValue").hide();
+        }
+    }
+
+    // Handler for a Toggle component, to show/hide Components with a matching group
+    function toggleGroup() {
+        for (var item of clayConfig.getItemsByGroup(this.messageKey + "ToggleGroup")) {
+            if (this.get()) {
                 item.show();
             } else {
                 item.hide();
@@ -104,8 +128,19 @@ var clay = new Clay(clayConfig, function(minified) {
 
         var enableFaceText = clayConfig.getItemByMessageKey("faceTextEnabled");
         if (enableFaceText) {
-            toggleFaceText.call(enableFaceText)
-            enableFaceText.on("change", toggleFaceText);
+            toggleGroup.call(enableFaceText)
+            enableFaceText.on("change", toggleGroup);
+        }
+
+        for (var compMode of clayConfig.getItemsByGroup("compModes")) {
+            toggleCompMode.call(compMode)
+            compMode.on("change", toggleCompMode);
+        }
+
+        var comp1Type = clayConfig.getItemByMessageKey("comp1Type");
+        if (comp1Type) {
+            toggleCompType.call(comp1Type)
+            comp1Type.on("change", toggleCompType);
         }
     });
 
