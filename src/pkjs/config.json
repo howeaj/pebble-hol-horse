@@ -18,7 +18,6 @@
       { "type": "color", "messageKey": "minuteColor", "label": "Minute Hand", "defaultValue": "ffffff" }
     ]
   },
-    { "type": "heading", "defaultValue": "Complications" },
     { "type": "section",
       "items": [
         { "type": "heading", "defaultValue": "Complication 1" },
@@ -83,6 +82,20 @@
         },
         { "type": "color", "group": "comp1", "messageKey": "comp1FgColor", "label": "Foreground", "defaultValue": "aa00aa" },
         { "type": "color", "group": "comp1", "messageKey": "comp1BgColor", "label": "Background", "defaultValue": "00ff00" }
+      ]
+    },
+  { "type": "section",
+      "items": [
+        { "type": "heading", "defaultValue": "Custom background text" },
+        { "type": "toggle", "messageKey": "faceTextEnabled",
+          "label": "Enable", "defaultValue": false },
+        { "type": "input", "messageKey": "faceText", "group": "faceText",
+          "label": "Text (max 10 letters)",
+          "defaultValue": "pebble",
+          "attributes": {"maxlength": 10,  "pattern": "[a-zA-Z. ]*"}
+        },
+        { "type": "color", "messageKey": "faceTextColor", "group": "faceText",
+          "label": "Colour", "defaultValue": "aaaaaa" }
       ]
     },
   { "type": "submit", "defaultValue": "Save" }

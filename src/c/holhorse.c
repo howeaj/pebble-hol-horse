@@ -2,7 +2,6 @@
 
 /* TODO
     - Debug render all complication values for testing
-    - Change font subscript to superscript
     - 1 minute fast
     - If seconds are visible at noon, play shoot animation panels
     - Za Waldo stop time and invert colours for 5 seconds... but when to trigger?
@@ -138,6 +137,8 @@ static void draw_hand_sec_shadow(Layer* layer, GContext* ctx, int32_t angle) {
 ******************************************************************************/
 
 static GBitmap* s_face;
+static GFont s_face_font;
+static char s_face_text[FACE_TEXT_SIZE];
 
 #define MAX_NUM_SECONDS (3)
 static int8_t s_num_seconds_shown = 0;
@@ -191,6 +192,17 @@ static void draw_face(GRect bounds, GContext* ctx) {
 }
 #endif // DEBUG_DRAW_FACE
 
+static void draw_face_text(const GRect bounds, GContext* ctx) {
+    const Config* config = config_get();
+    graphics_context_set_text_color(ctx, config->faceTextColor);
+    const GRect text_bounds = {
+        .origin = {0, bounds.origin.y + (bounds.size.h / 4)},
+        .size = {bounds.size.w, 18},
+    };
+    graphics_draw_text(ctx, s_face_text, s_face_font, text_bounds,
+        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+}
+
 static void draw_root_layer(Layer* layer, GContext* ctx) {
     // TRACE("draw_root_layer; s_num_seconds_shown = %d", s_num_seconds_shown);
     PROFILE_START();
@@ -212,6 +224,11 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
 #if DEBUG_DRAW_FACE
         draw_face(bounds, ctx);
 #endif // DEBUG_DRAW_FACE
+
+        // face brand text
+        if (config_get()->faceTextEnabled) {
+            draw_face_text(bounds, ctx);
+        }
 
         // hands
         const HandAngles hand_angles = analogue_get_angles();
@@ -261,6 +278,7 @@ static void set_bitmap_colors(const Config* config) {
 static void init_resources(Layer *root_layer) {
     complications_init();
     s_face = gbitmap_create_with_resource(RESOURCE_ID_FACE_REAL);
+    s_face_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_SERIF_18));
     s_hour_hand_bitmaps[0] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_0);
     s_hour_hand_bitmaps[1] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_7_5);
     s_hour_hand_bitmaps[2] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_15);
@@ -281,6 +299,7 @@ static void init_resources(Layer *root_layer) {
 static void destroy_resources(void) {
     complications_destroy();
     gbitmap_destroy(s_face);
+    fonts_unload_custom_font(s_face_font);
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
         gbitmap_destroy(s_hour_hand_bitmaps[i]);
     }
@@ -289,6 +308,13 @@ static void destroy_resources(void) {
     }
 }
 
+static void handle_config(const Config* config) {
+    set_bitmap_colors(config);
+    complications_configure(config);
+
+    strscpy(s_face_text, config->faceText, FACE_TEXT_SIZE);
+    string_to_lower(s_face_text, FACE_TEXT_SIZE);
+}
 
 /******************************************************************************
  Generic watchface boilerplate
@@ -350,8 +376,7 @@ static void fast_time_handler(void* context) {
 #endif // FAST_TIME_MS
 
 static void new_config_handler(const Config* config) {
-    set_bitmap_colors(config);
-    complications_configure(config);
+    handle_config(config);
     mark_root_window_dirty(true);
 }
 

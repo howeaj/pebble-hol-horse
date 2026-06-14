@@ -113,7 +113,7 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
             break;
 
         case ComplicationState_Appear:
-            complication->shake_offset = (GPoint) { // TODO try nonrandom shake
+            complication->shake_offset = (GPoint) {
                 (rand() % 3) - 1, (rand() % 3) - 1
             };
             complication->rect.origin.x += complication->shake_offset.x;
@@ -537,6 +537,9 @@ static void complication_start(uint32_t index, bool avoid_second_hand) {
     // TODO starting from 0 can waste some space; start from the hour hand? start from a random hand?
     // WONTDO handle comp2 disabled but comp1 and comp3 enabled
     int32_t start_angle_deg = 0;
+    if (config_get()->faceTextEnabled) {
+        start_angle_deg = 90;
+    }
     if (index > 0) {
         const Complication* const other = &complications[index - 1];
         if (other->mode != ComplicationMode_Off) {
