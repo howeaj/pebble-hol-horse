@@ -147,7 +147,7 @@ void config_init(NewConfigCallback callback) {
     local_persist_load();
     app_message_register_inbox_received(&inbox_received_handler);
 
-    AppMessageResult result = app_message_open(256, 0);
+    AppMessageResult result = app_message_open(512, 0);
     if (result != APP_MSG_OK) {
         LOG("app_message_open failed: 0x%x", result);
     }

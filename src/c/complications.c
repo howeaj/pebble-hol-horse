@@ -254,7 +254,11 @@ void complications_draw(Layer* layer, GContext* ctx, bool is_full_redraw) {
         } else if ((complication->mode == ComplicationMode_OnActivate)
                 && (complication->state != ComplicationState_Off))
         {
-            complication_draw_animated(ctx, complication, is_full_redraw);
+            if ((config_get()->animationSpeed == AnimationSpeed_Off) && is_full_redraw) {
+                draw_complication(ctx, complication);
+            } else {
+                complication_draw_animated(ctx, complication, is_full_redraw);
+            }
         }
     }
 }
@@ -263,7 +267,8 @@ static int8_t num_animating_complications(void) {
     int8_t count = 0;
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
         if ((complications[i].state != ComplicationState_Off)
-                && (complications[i].mode == ComplicationMode_OnActivate))
+                && (complications[i].mode == ComplicationMode_OnActivate)
+                && (config_get()->animationSpeed != AnimationSpeed_Off))
         {
             count++;
         }
@@ -643,12 +648,29 @@ static void complication_start(uint32_t index, bool avoid_second_hand) {
     complication_activate(index);
 }
 
+// Wrapper to call complication_start() from an AppTimer
+/// WARNING arg `context` is an int complication index, not a pointer
+static void complication_start_callback(void* context) {
+    uint32_t complication_index = (uint32_t)context;
+    complication_start(complication_index, true);
+}
+
 void complication_start_next(void) {
+    const AnimationSpeed anim_speed = config_get()->animationSpeed;
+    uint32_t fastAnimDelayMs = 0;
+
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
         Complication* const complication = &complications[i];
         if ((complication->mode == ComplicationMode_OnActivate) && (complication->state == ComplicationState_Off)) {
-            complication_start(i, true);
-            break;
+            if (fastAnimDelayMs == 0) {
+                complication_start(i, true);
+            }
+            if (anim_speed == AnimationSpeed_Normal) {
+                break;
+            } else if (anim_speed == AnimationSpeed_Fast) {
+                fastAnimDelayMs += 100;
+                app_timer_register(fastAnimDelayMs, complication_start_callback, (void*)i);
+            }
         }
     }
 }
@@ -665,14 +687,20 @@ void complications_update(void) {
 
 void complications_stop(void) {
     // assumes all complications are already on
-    uint32_t delay = 0;
-    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        complications[i].animation_counter = delay;
-        delay += FRAMERATE / 10;
+    if (config_get()->animationSpeed == AnimationSpeed_Off) {
+        for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+            complications[i].state = ComplicationState_Off;
+        }
+    } else {
+        uint32_t delay = 0;
+        for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+            complications[i].animation_counter = delay;
+            delay += FRAMERATE / 10;
+        }
+        // the last complication is still in State_Appear
+        complications[NUM_COMPLICATIONS - 1].state = ComplicationState_On;
+        complications[NUM_COMPLICATIONS - 1].shake_offset = (GPoint) {0, 0};
     }
-    // the last complication is still in State_Appear
-    complications[NUM_COMPLICATIONS - 1].state = ComplicationState_On;
-    complications[NUM_COMPLICATIONS - 1].shake_offset = (GPoint) {0, 0};
 }
 
 void complications_configure(const Config* config){

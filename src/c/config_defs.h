@@ -51,6 +51,7 @@
     MACRO(STR,   char, [TZ_TEXT_SIZE],   comp1TimezoneText, "alt") \
     MACRO(STR,   char, [TZ_TEXT_SIZE],   comp2TimezoneText, "alt") \
     MACRO(STR,   char, [TZ_TEXT_SIZE],   comp3TimezoneText, "alt") \
+    MACRO(ENUM,  AnimationSpeed,,        animationSpeed,    AnimationSpeed_Normal) \
     MACRO(BOOL,  bool,,                  faceTextEnabled,   false) \
     MACRO(COLOR, GColor,,                faceTextColor,     GColorLightGray) \
     MACRO(STR,   char, [FACE_TEXT_SIZE], faceText,          "pebble") \
@@ -78,3 +79,9 @@ typedef enum ComplicationMode {
     ComplicationMode_OnActivate = 1,
     ComplicationMode_OnAlways = 2,
 } ComplicationMode;
+
+typedef enum AnimationSpeed {
+    AnimationSpeed_Normal = 0,
+    AnimationSpeed_Fast = 1,
+    AnimationSpeed_Off = 2,
+} AnimationSpeed;

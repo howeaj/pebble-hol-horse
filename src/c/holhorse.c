@@ -2,6 +2,7 @@
 
 /* TODO
     - Debug render all complication values for testing
+    - seconds always, or last 1 minute
     - 1 minute fast
     - If seconds are visible at noon, play shoot animation panels
     - Za Waldo stop time and invert colours for 5 seconds... but when to trigger?
@@ -377,6 +378,7 @@ static void fast_time_handler(void* context) {
 
 static void new_config_handler(const Config* config) {
     handle_config(config);
+    activation_handler(NULL);
     mark_root_window_dirty(true);
 }
 

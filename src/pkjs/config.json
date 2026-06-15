@@ -20,6 +20,19 @@
   },
   { "type": "section",
     "items": [
+      { "type": "heading", "defaultValue": "Misc"},
+      { "type": "select", "messageKey": "animationSpeed", "label": "Animation speed",
+        "defaultValue": "0",
+        "options": [
+          {"label": "Normal", "value": "0" },
+          {"label": "Fast",   "value": "1" },
+          {"label": "Off",    "value": "2" }
+        ]
+      }
+    ]
+  },
+  { "type": "section",
+    "items": [
       { "type": "heading", "defaultValue": "Complication 1" },
       { "type": "select", "messageKey": "comp1Mode", "group": "compModes", "label": "When to show",
         "defaultValue": "1",
