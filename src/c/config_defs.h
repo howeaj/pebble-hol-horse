@@ -29,32 +29,35 @@
 */
 #define X_CONFIG_OPTIONS(MACRO) \
     /* conftype, C type, arrsuffix,      message key,       default */ \
-    MACRO(COLOR, GColor,,                bgColor,           GColorWhite) \
-    MACRO(COLOR, GColor,,                fgColor,           GColorBlack) \
-    MACRO(COLOR, GColor,,                hourColor,         GColorBlack) \
-    MACRO(COLOR, GColor,,                minuteColor,       GColorBlack) \
-    MACRO(COLOR, GColor,,                comp1FgColor,      GColorPurple) \
-    MACRO(COLOR, GColor,,                comp2FgColor,      GColorPurple) \
-    MACRO(COLOR, GColor,,                comp3FgColor,      GColorPurple) \
-    MACRO(COLOR, GColor,,                comp1BgColor,      GColorGreen) \
-    MACRO(COLOR, GColor,,                comp2BgColor,      GColorGreen) \
-    MACRO(COLOR, GColor,,                comp3BgColor,      GColorGreen) \
-    MACRO(ENUM,  ComplicationType,,      comp1Type,         ComplicationType_Tick) \
-    MACRO(ENUM,  ComplicationType,,      comp2Type,         ComplicationType_Tick) \
-    MACRO(ENUM,  ComplicationType,,      comp3Type,         ComplicationType_Tick) \
-    MACRO(ENUM,  ComplicationMode,,      comp1Mode,         ComplicationMode_OnActivate) \
-    MACRO(ENUM,  ComplicationMode,,      comp2Mode,         ComplicationMode_OnActivate) \
-    MACRO(ENUM,  ComplicationMode,,      comp3Mode,         ComplicationMode_OnActivate) \
-    MACRO(CHAR,  int8_t,,                comp1Value,        0) \
-    MACRO(CHAR,  int8_t,,                comp2Value,        0) \
-    MACRO(CHAR,  int8_t,,                comp3Value,        0) \
-    MACRO(STR,   char, [TZ_TEXT_SIZE],   comp1TimezoneText, "alt") \
-    MACRO(STR,   char, [TZ_TEXT_SIZE],   comp2TimezoneText, "alt") \
-    MACRO(STR,   char, [TZ_TEXT_SIZE],   comp3TimezoneText, "alt") \
-    MACRO(ENUM,  AnimationSpeed,,        animationSpeed,    AnimationSpeed_Normal) \
-    MACRO(BOOL,  bool,,                  faceTextEnabled,   false) \
-    MACRO(COLOR, GColor,,                faceTextColor,     GColorLightGray) \
-    MACRO(STR,   char, [FACE_TEXT_SIZE], faceText,          "pebble") \
+    MACRO(COLOR, GColor,,                bgColor,             GColorWhite) \
+    MACRO(COLOR, GColor,,                fgColor,             GColorBlack) \
+    MACRO(COLOR, GColor,,                hourColor,           GColorBlack) \
+    MACRO(COLOR, GColor,,                minuteColor,         GColorBlack) \
+    MACRO(COLOR, GColor,,                comp1FgColor,        GColorPurple) \
+    MACRO(COLOR, GColor,,                comp2FgColor,        GColorPurple) \
+    MACRO(COLOR, GColor,,                comp3FgColor,        GColorPurple) \
+    MACRO(COLOR, GColor,,                comp1BgColor,        GColorGreen) \
+    MACRO(COLOR, GColor,,                comp2BgColor,        GColorGreen) \
+    MACRO(COLOR, GColor,,                comp3BgColor,        GColorGreen) \
+    MACRO(ENUM,  ComplicationType,,      comp1Type,           ComplicationType_Tick) \
+    MACRO(ENUM,  ComplicationType,,      comp2Type,           ComplicationType_Tick) \
+    MACRO(ENUM,  ComplicationType,,      comp3Type,           ComplicationType_Tick) \
+    MACRO(ENUM,  ComplicationMode,,      comp1Mode,           ComplicationMode_OnActivate) \
+    MACRO(ENUM,  ComplicationMode,,      comp2Mode,           ComplicationMode_OnActivate) \
+    MACRO(ENUM,  ComplicationMode,,      comp3Mode,           ComplicationMode_OnActivate) \
+    MACRO(CHAR,  int8_t,,                comp1Value,          0) \
+    MACRO(CHAR,  int8_t,,                comp2Value,          0) \
+    MACRO(CHAR,  int8_t,,                comp3Value,          0) \
+    MACRO(STR,   char, [TZ_TEXT_SIZE],   comp1TimezoneText,   "alt") \
+    MACRO(STR,   char, [TZ_TEXT_SIZE],   comp2TimezoneText,   "alt") \
+    MACRO(STR,   char, [TZ_TEXT_SIZE],   comp3TimezoneText,   "alt") \
+    MACRO(ENUM,  AnimationSpeed,,        animationSpeed,      AnimationSpeed_Normal) \
+    MACRO(BOOL,  bool,,                  batteryMeterEnabled, false) \
+    MACRO(INT,   uint8_t,,               batteryLowPercent,   20) \
+    MACRO(COLOR, GColor,,                batteryLowColor,     GColorRed) \
+    MACRO(BOOL,  bool,,                  faceTextEnabled,     false) \
+    MACRO(COLOR, GColor,,                faceTextColor,       GColorLightGray) \
+    MACRO(STR,   char, [FACE_TEXT_SIZE], faceText,            "pebble") \
 /* end of X_CONFIG_OPTIONS */
 
 

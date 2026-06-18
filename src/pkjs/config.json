@@ -33,6 +33,27 @@
   },
   { "type": "section",
     "items": [
+      { "type": "heading", "defaultValue": "Background features" },
+      { "type": "color", "messageKey": "faceTextColor", "label": "Brand text / meter color", "defaultValue": "aaaaaa" },
+      { "type": "toggle", "messageKey": "faceTextEnabled", "label": "Brand text", "defaultValue": false },
+      { "type": "input", "messageKey": "faceText", "group": "faceTextEnabledToggleGroup",
+        "defaultValue": "pebble",
+        "attributes": {"maxlength": 10,  "pattern": "[a-zA-Z. ]*"}
+      },
+
+      { "type": "toggle", "messageKey": "batteryMeterEnabled", "label": "Battery meter", "defaultValue": false },
+      { "type": "slider", "messageKey": "batteryLowPercent", "label": "Low battery warning %",
+        "group": "batteryMeterEnabledToggleGroup",
+        "description": "Meter changes colour at this % remaining",
+        "defaultValue": 20,
+        "min": 1, "max": 100, "step": 1
+      },
+      { "type": "color", "messageKey": "batteryLowColor", "group": "batteryMeterEnabledToggleGroup",
+        "label": "Low battery colour", "defaultValue": "ff0000" }
+    ]
+  },
+  { "type": "section",
+    "items": [
       { "type": "heading", "defaultValue": "Complication 1" },
       { "type": "select", "messageKey": "comp1Mode", "group": "compModes", "label": "When to show",
         "defaultValue": "1",
@@ -244,18 +265,5 @@
         "defaultValue": "00ff00" }
     ]
   },
-  { "type": "section",
-      "items": [
-        { "type": "heading", "defaultValue": "Custom background text" },
-        { "type": "toggle", "messageKey": "faceTextEnabled", "label": "Enable", "defaultValue": false },
-        { "type": "input", "messageKey": "faceText", "group": "faceTextEnabledToggleGroup",
-          "label": "Text (max 10 letters)",
-          "defaultValue": "pebble",
-          "attributes": {"maxlength": 10,  "pattern": "[a-zA-Z. ]*"}
-        },
-        { "type": "color", "messageKey": "faceTextColor", "group": "faceTextEnabledToggleGroup",
-          "label": "Colour", "defaultValue": "aaaaaa" }
-      ]
-    },
   { "type": "submit", "defaultValue": "Save" }
 ]

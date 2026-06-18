@@ -1,8 +1,15 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
 /* TODO
-    - Debug render all complication values for testing
     - seconds always, or last 1 minute
+    - more colour themes
+        - White on orange
+        - Yellow on Darkblue
+    - move individual comp and hand colours to "advanced" section, Comps colours at top
+    - fix Alt Timezone sub-opts
+    - -flto gcc opt
+    - emery support
+    - Debug render all complication values for testing
     - 1 minute fast
     - If seconds are visible at noon, play shoot animation panels
     - Za Waldo stop time and invert colours for 5 seconds... but when to trigger?
@@ -145,6 +152,9 @@ static char s_face_text[FACE_TEXT_SIZE];
 static int8_t s_num_seconds_shown = 0;
 static bool s_is_full_redraw = false;
 
+static GColor s_battery_color = GColorRed;  // color of the battery meter
+static uint8_t s_battery_pixels = 0;  // width of the battery meter
+
 
 static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
     // TRACE("handle_tick; s_num_seconds_shown = %d", s_num_seconds_shown);
@@ -165,6 +175,41 @@ static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
     }
 
     mark_root_window_dirty(true);
+}
+
+static void handle_battery(BatteryChargeState charge) {
+    const Config* config  = config_get();
+
+    s_battery_color = (charge.charge_percent > config->batteryLowPercent) ? config->faceTextColor : config->batteryLowColor;
+
+    const uint8_t char_width = 10;
+    const int text_len = strlen(config->faceText);
+    const uint8_t num_chars = (text_len == 0) ? 6 : MAX(3, text_len);
+    const uint8_t max_width = num_chars * char_width;
+    s_battery_pixels = MUL_FRACT(max_width, charge.charge_percent, 100);
+
+    mark_root_window_dirty(true);
+}
+
+static void draw_battery_meter(const GRect bounds, GContext* ctx) {
+    graphics_context_set_fill_color(ctx, s_battery_color);
+    const GRect rect = {
+        .origin = {(bounds.size.h - s_battery_pixels) / 2,
+                    bounds.origin.y + (bounds.size.h / 4) + 20}, // below draw_face_text's text_bounds
+        .size = {s_battery_pixels, 2},
+    };
+    graphics_fill_rect(ctx, rect, 0, GCornerNone);
+}
+
+static void draw_face_text(const GRect bounds, GContext* ctx) {
+    const Config* config = config_get();
+    graphics_context_set_text_color(ctx, config->faceTextColor);
+    const GRect text_bounds = {
+        .origin = {0, bounds.origin.y + (bounds.size.h / 4)},
+        .size = {bounds.size.w, 18},
+    };
+    graphics_draw_text(ctx, s_face_text, s_face_font, text_bounds,
+        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
 }
 
 #if DEBUG_DRAW_FACE
@@ -193,17 +238,6 @@ static void draw_face(GRect bounds, GContext* ctx) {
 }
 #endif // DEBUG_DRAW_FACE
 
-static void draw_face_text(const GRect bounds, GContext* ctx) {
-    const Config* config = config_get();
-    graphics_context_set_text_color(ctx, config->faceTextColor);
-    const GRect text_bounds = {
-        .origin = {0, bounds.origin.y + (bounds.size.h / 4)},
-        .size = {bounds.size.w, 18},
-    };
-    graphics_draw_text(ctx, s_face_text, s_face_font, text_bounds,
-        GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-}
-
 static void draw_root_layer(Layer* layer, GContext* ctx) {
     // TRACE("draw_root_layer; s_num_seconds_shown = %d", s_num_seconds_shown);
     PROFILE_START();
@@ -229,6 +263,9 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
         // face brand text
         if (config_get()->faceTextEnabled) {
             draw_face_text(bounds, ctx);
+        }
+        if (config_get()->batteryMeterEnabled) {
+            draw_battery_meter(bounds, ctx);
         }
 
         // hands
@@ -298,6 +335,7 @@ static void init_resources(Layer *root_layer) {
 }
 
 static void destroy_resources(void) {
+    battery_state_service_unsubscribe();
     complications_destroy();
     gbitmap_destroy(s_face);
     fonts_unload_custom_font(s_face_font);
@@ -315,7 +353,15 @@ static void handle_config(const Config* config) {
 
     strscpy(s_face_text, config->faceText, FACE_TEXT_SIZE);
     string_to_lower(s_face_text, FACE_TEXT_SIZE);
+
+    if (config->batteryMeterEnabled) {
+        handle_battery(battery_state_service_peek());  // depends on s_face_text
+        battery_state_service_subscribe(handle_battery);
+    } else {
+        battery_state_service_unsubscribe();
+    }
 }
+
 
 /******************************************************************************
  Generic watchface boilerplate

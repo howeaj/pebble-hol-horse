@@ -11,13 +11,6 @@ var clay = new Clay(clayConfig, function(minified) {
         }
     }
 
-    // function setColorById(id, color) {
-    //     var item = clayConfig.getItemById(id);
-    //     if (item) {
-    //         item.set(color);
-    //     }
-    // }
-
     function setTheme() {
         var themeSelector = this;
         const theme = themeSelector.get();
@@ -70,6 +63,10 @@ var clay = new Clay(clayConfig, function(minified) {
             // case "Hermit Purple":
             // case "Magician's Red":
             // case "Hierophant Green":
+            // case "Yellow Temperance":
+            // case "Ebony Devil":
+            // case "Dark Blue Moon":
+            // case "Sun":
 
             // dark blue and yellow
             default:
@@ -131,6 +128,11 @@ var clay = new Clay(clayConfig, function(minified) {
             toggleGroup.call(enableFaceText)
             enableFaceText.on("change", toggleGroup);
         }
+        var enableBatteryMeter = clayConfig.getItemByMessageKey("batteryMeterEnabled");
+        if (enableBatteryMeter) {
+            toggleGroup.call(enableBatteryMeter)
+            enableBatteryMeter.on("change", toggleGroup);
+        }
 
         for (var compMode of clayConfig.getItemsByGroup("compModes")) {
             toggleCompMode.call(compMode)
@@ -145,3 +147,6 @@ var clay = new Clay(clayConfig, function(minified) {
     });
 
 });
+
+// TODO clay.registerComponent(require('./yoshiColorPicker'));
+// or https://github.com/jrmobley/pebble-clay-preview-component

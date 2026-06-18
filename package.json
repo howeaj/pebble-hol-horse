@@ -41,6 +41,9 @@
       "comp2TimezoneText",
       "comp3TimezoneText",
       "animationSpeed",
+      "batteryMeterEnabled",
+      "batteryLowPercent",
+      "batteryLowColor",
       "faceTextEnabled",
       "faceTextColor",
       "faceText"
