@@ -138,11 +138,12 @@ var clay = new Clay(clayConfig, function(minified) {
             toggleCompMode.call(compMode)
             compMode.on("change", toggleCompMode);
         }
-
-        var comp1Type = clayConfig.getItemByMessageKey("comp1Type");
-        if (comp1Type) {
-            toggleCompType.call(comp1Type)
-            comp1Type.on("change", toggleCompType);
+        for (let i = 1; i <= 3; i++) {
+            var compType = clayConfig.getItemByMessageKey("comp" + i.toString() + "Type");
+            if (compType) {
+                toggleCompType.call(compType)
+                compType.on("change", toggleCompType);
+            }
         }
     });
 

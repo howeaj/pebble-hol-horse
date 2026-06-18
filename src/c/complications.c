@@ -726,7 +726,7 @@ void complications_configure(const Config* config){
     strscpy(&complications[2].text[2], config->comp3TimezoneText, TZ_TEXT_SIZE);
     string_to_lower(&complications[0].text[2], TZ_TEXT_SIZE);
     string_to_lower(&complications[1].text[2], TZ_TEXT_SIZE);
-    string_to_lower(&complications[1].text[2], TZ_TEXT_SIZE);
+    string_to_lower(&complications[2].text[2], TZ_TEXT_SIZE);
 
     complications_update();
 }

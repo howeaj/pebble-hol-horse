@@ -6,7 +6,6 @@
         - White on orange
         - Yellow on Darkblue
     - move individual comp and hand colours to "advanced" section, Comps colours at top
-    - fix Alt Timezone sub-opts
     - -flto gcc opt
     - emery support
     - Debug render all complication values for testing
