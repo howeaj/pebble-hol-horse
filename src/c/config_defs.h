@@ -28,11 +28,12 @@
     - Default value should match config.json.
 */
 #define X_CONFIG_OPTIONS(MACRO) \
-    /* conftype, C type, arrsuffix,      message key,       default */ \
+    /* conftype, C type, arrsuffix,      message key,         default */ \
     MACRO(COLOR, GColor,,                bgColor,             GColorWhite) \
     MACRO(COLOR, GColor,,                fgColor,             GColorBlack) \
     MACRO(COLOR, GColor,,                hourColor,           GColorBlack) \
     MACRO(COLOR, GColor,,                minuteColor,         GColorBlack) \
+    MACRO(COLOR, GColor,,                secondColor,         GColorBlack) \
     MACRO(COLOR, GColor,,                comp1FgColor,        GColorPurple) \
     MACRO(COLOR, GColor,,                comp2FgColor,        GColorPurple) \
     MACRO(COLOR, GColor,,                comp3FgColor,        GColorPurple) \

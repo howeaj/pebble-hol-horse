@@ -5,7 +5,6 @@
     - more colour themes
         - White on orange
         - Yellow on Darkblue
-    - move individual comp and hand colours to "advanced" section, Comps colours at top
     - -flto gcc opt
     - emery support
     - Debug render all complication values for testing
@@ -114,14 +113,14 @@ static void draw_hand_sec(Layer* layer, GContext* ctx, int32_t angle) {
     if (analogue_is_vertical(angle)){
         graphics_draw_line(ctx, (GPoint){centre.x + 1, centre.y}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x - 1, centre.y}, tip);
-        graphics_context_set_stroke_color(ctx, config->fgColor);
+        graphics_context_set_stroke_color(ctx, config->secondColor);
         graphics_context_set_antialiased(ctx, true);
         graphics_draw_line(ctx, (GPoint){centre.x + 2, centre.y}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x - 2, centre.y}, tip);
     } else {  // horizontal
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y + 1}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y - 1}, tip);
-        graphics_context_set_stroke_color(ctx, config->fgColor);
+        graphics_context_set_stroke_color(ctx, config->secondColor);
         graphics_context_set_antialiased(ctx, true);
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y + 2}, tip);
         graphics_draw_line(ctx, (GPoint){centre.x, centre.y - 2}, tip);
@@ -134,7 +133,7 @@ static void draw_hand_sec_shadow(Layer* layer, GContext* ctx, int32_t angle) {
     const GRect mid_bounds = grect_crop(bounds, (PBL_DISPLAY_WIDTH / 6) + MUL_FRACT(PBL_DISPLAY_WIDTH / 6, 1, 5));
     const GPoint tip = gpoint_from_polar(mid_bounds, GOvalScaleModeFitCircle, angle);
 
-    graphics_context_set_stroke_color(ctx, config_get()->fgColor);
+    graphics_context_set_stroke_color(ctx, config_get()->secondColor);
     graphics_draw_line(ctx, centre, tip);
 }
 
