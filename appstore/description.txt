@@ -1,11 +1,26 @@
-Hol Horse's watch from Jojo's Bizarre Adventure. Shake to show seconds, battery level, day, bluetooth and when to shoot your enemies.
+Hol Horse's watch from Jojo's Bizarre Adventure. Shake to show seconds and 3 custom complications. Very configurable.
 
-Tags: roman numerals, anime, manga, analogue, round, jjba, oingo boingo, stardust crusaders, novelty, functional
+Tags: roman numerals, analogue, round, anime, manga, novelty, functional, ornate, fancy, efficient, jjba
 
 Configurable features:
-    - Vibe on bluetooth disconnect
+    - Battery meter
     - Complications:
         - Battery level
-        - Day of the month
-        - Bluetooth status
-    - Invert colours
+        - Day name or number
+        - Month name or number
+        - Steps
+        - Sleep
+        - Alternate Timezone
+    - Colour (preset and custom themes)
+    - Custom text (brand, monogram etc)
+    - Animation speed: Normal, Fast or Off
+    - Individually set each complication to be always visible, show on shake or disabled entirely.
+
+Coming soon:
+    - Weather, rain, uv index etc.
+    - Bluetooth connection
+    - Quiet time
+    - Live-preview colour customisation
+
+Requests and suggestions welcome!
+If you like the style but a feature you need is missing, just let me know!

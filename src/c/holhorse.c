@@ -1,24 +1,27 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
 /* TODO
-    - seconds always, or last 1 minute
+    - state indicators
+        - quiet time
+        - bluetooth disconnect
+    - animation improvements
+        - mask instead of bounding box
+            - how to get text mask??
+        - don't wakeup when nothing moving up
     - more colour themes
-        - White on orange
-        - Yellow on Darkblue
     - -flto gcc opt
     - emery support
     - Debug render all complication values for testing
-    - 1 minute fast
     - If seconds are visible at noon, play shoot animation panels
-    - Za Waldo stop time and invert colours for 5 seconds... but when to trigger?
-        - bluetooth disconnect?
-        - on charger?
-    - complications (see complications.c)
+    - turn battery meter green when on charge & 80%
     - config:
         1 min fast
-        Shake to activate
-        Touch to activate
+        Activation options
+            Shake
+            Backlight
         Low-power-mode under 20%
+        longer seconds display
+        languages
 */
 
 #include <pebble.h>

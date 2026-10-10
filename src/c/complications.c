@@ -2,7 +2,6 @@
 
 /* TODO
     Double redraw on minute tick
-    Text complication, option to go below hand instead of avoid, option font
 */
 
 #include "complications.h"
