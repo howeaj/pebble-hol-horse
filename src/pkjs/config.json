@@ -90,6 +90,15 @@
           ]
         },
         { "type": "select", "messageKey": "comp1Value",
+          "group": "comp1ModeToggleGroup", "id": "comp1TypeStepsUnit",
+          "label": "Units",
+          "defaultValue": "0",
+          "options": [
+            { "value": "0", "label": "Kilosteps" },
+            { "value": "1", "label": "Kilometres" }
+          ]
+        },
+        { "type": "select", "messageKey": "comp1Value",
           "group": "comp1ModeToggleGroup", "id": "comp1TypeTimezoneText",
           "label": "Timezone",
           "defaultValue": "M",
@@ -154,6 +163,15 @@
             { "label": "Steps",              "value": "6" },
             { "label": "Sleep",              "value": "7" },
             { "label": "Alternate Timezone", "value": "8" }
+          ]
+        },
+        { "type": "select", "messageKey": "comp2Value",
+          "group": "comp2ModeToggleGroup", "id": "comp2TypeStepsUnit",
+          "label": "Units",
+          "defaultValue": "0",
+          "options": [
+            { "value": "0", "label": "Kilosteps" },
+            { "value": "1", "label": "Kilometres" }
           ]
         },
         { "type": "select", "messageKey": "comp2Value",
@@ -222,6 +240,15 @@
             { "label": "Steps",              "value": "6" },
             { "label": "Sleep",              "value": "7" },
             { "label": "Alternate Timezone", "value": "8" }
+          ]
+        },
+        { "type": "select", "messageKey": "comp3Value",
+          "group": "comp3ModeToggleGroup", "id": "comp3TypeStepsUnit",
+          "label": "Units",
+          "defaultValue": "0",
+          "options": [
+            { "value": "0", "label": "Kilosteps" },
+            { "value": "1", "label": "Kilometres" }
           ]
         },
         { "type": "select", "messageKey": "comp3Value",

@@ -116,12 +116,15 @@ var clay = new Clay(clayConfig, function(minified) {
 
     // Handler for Complications' Types component, to hide/show specific comp type options
     function toggleCompType() {
-        if (this.get() === "8") {
+        clayConfig.getItemById(this.messageKey + "StepsUnit").hide();
+        clayConfig.getItemById(this.messageKey + "TimezoneText").hide();
+        clayConfig.getItemById(this.messageKey + "TimezoneValue").hide();
+
+        if (this.get() === "6") {
+            clayConfig.getItemById(this.messageKey + "StepsUnit").show();
+        } else if (this.get() === "8") {
             clayConfig.getItemById(this.messageKey + "TimezoneText").show();
             clayConfig.getItemById(this.messageKey + "TimezoneValue").show();
-        } else {
-            clayConfig.getItemById(this.messageKey + "TimezoneText").hide();
-            clayConfig.getItemById(this.messageKey + "TimezoneValue").hide();
         }
     }
 
