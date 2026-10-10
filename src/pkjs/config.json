@@ -8,7 +8,9 @@
         "options": [
           {"label": "Emperor", "value": "Emperor" },
           {"label": "The World", "value": "The World" },
+          {"label": "Magician's Red", "value": "Magician's Red" },
           {"label": "Silver Chariot", "value": "Silver Chariot" },
+          {"label": "Dark Blue Moon", "value": "Dark Blue Moon" },
           {"label": "Custom", "value": "Custom" }
         ]
       },

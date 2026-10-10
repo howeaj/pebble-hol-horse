@@ -37,6 +37,16 @@ var clay = new Clay(clayConfig, function(minified) {
             setColor('compBgColors',  0xaa00aa);
             setColor('faceTextColor', 0x555555);
             break;
+        case "Magician's Red":
+            setColor('bgColors',      0xff5500);
+            setColor('fgColors',      0xffffff);
+            setColor('hourColor',     0xffffff);
+            setColor('minuteColor',   0xffffff);
+            setColor('secondColor',   0xffffff);
+            setColor('compFgColors',  0xaa0000);
+            setColor('compBgColors',  0xaa0055);
+            setColor('faceTextColor', 0xffaaaa);
+            break;
         case "Silver Chariot":
             setColor('bgColors',      0xaaaaaa);
             setColor('fgColors',      0xffffff);
@@ -47,16 +57,22 @@ var clay = new Clay(clayConfig, function(minified) {
             setColor('compBgColors',  0x555555);
             setColor('faceTextColor', 0xffffff);
             break;
+        case "Dark Blue Moon":
+            setColor('bgColors',      0x000055);
+            setColor('fgColors',      0xffff00);
+            setColor('hourColor',     0xffff00);
+            setColor('minuteColor',   0xffff00);
+            setColor('secondColor',   0xffff00);
+            setColor('compFgColors',  0xffff00);
+            setColor('compBgColors',  0xaa55ff);
+            setColor('faceTextColor', 0xffffaa);
+            break;
         // case "Star Platinum":
         // case "Hermit Purple":
-        // case "Magician's Red":
         // case "Hierophant Green":
         // case "Yellow Temperance":
         // case "Ebony Devil":
-        // case "Dark Blue Moon":
         // case "Sun":
-
-        // dark blue and yellow
         default:
             break;
         }
