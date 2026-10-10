@@ -188,6 +188,15 @@ static void draw_text_with_shadow(GContext* ctx, const char* text, GRect rect,
     graphics_draw_text(ctx, text, s_font, rect, GTextOverflowModeWordWrap, alignment, NULL);
 }
 
+// Draw a monochrome bitmap with a drop shadow. This modifies the bitmap's palette.
+static inline void draw_bitmap_with_shadow(GContext* ctx, GBitmap* bitmap, GRect rect,
+                                           GColor color_fg, GColor color_shadow) {
+    gbitmap_set_color(bitmap, 0, color_shadow);
+    graphics_draw_bitmap_in_rect(ctx, bitmap, shadow_rect(rect));
+    gbitmap_set_color(bitmap, 0, color_fg);
+    graphics_draw_bitmap_in_rect(ctx, bitmap, rect);
+}
+
 // Perform the graphics draw operation to draw `complication` in `rect` with the given `color`s
 static void graphics_draw_complication(GContext* ctx, const Complication* complication,
                                        GRect rect, GColor color1, GColor color2) {
@@ -195,10 +204,7 @@ static void graphics_draw_complication(GContext* ctx, const Complication* compli
         draw_text_with_shadow(ctx, complication->text, rect,
             GTextOverflowModeWordWrap, GTextAlignmentCenter, color1, color2);
     } else {
-        gbitmap_set_color(complication->bitmap, 0, color2);
-        graphics_draw_bitmap_in_rect(ctx, complication->bitmap, shadow_rect(rect));
-        gbitmap_set_color(complication->bitmap, 0, color1);
-        graphics_draw_bitmap_in_rect(ctx, complication->bitmap, rect);
+        draw_bitmap_with_shadow(ctx, complication->bitmap, rect, color1, color2);
     }
 }
 
