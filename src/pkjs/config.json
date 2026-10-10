@@ -81,14 +81,15 @@
           "defaultValue": "0",
           "options": [
             { "label": "Tick SFX",           "value": "0" },
-            { "label": "Battery",            "value": "1" },
-            { "label": "Day Name",           "value": "2" },
-            { "label": "Day Number",         "value": "3" },
-            { "label": "Month Name",         "value": "4" },
-            { "label": "Month Number",       "value": "5" },
-            { "label": "Steps",              "value": "6" },
-            { "label": "Sleep",              "value": "7" },
-            { "label": "Alternate Timezone", "value": "8" }
+            { "label": "Menacing SFX",       "value": "1" },
+            { "label": "Battery",            "value": "2" },
+            { "label": "Day Name",           "value": "3" },
+            { "label": "Day Number",         "value": "4" },
+            { "label": "Month Name",         "value": "5" },
+            { "label": "Month Number",       "value": "6" },
+            { "label": "Steps",              "value": "7" },
+            { "label": "Sleep",              "value": "8" },
+            { "label": "Alternate Timezone", "value": "9" }
           ]
         },
         { "type": "select", "messageKey": "comp1Value",
@@ -157,14 +158,15 @@
           "defaultValue": "0",
           "options": [
             { "label": "Tick SFX",           "value": "0" },
-            { "label": "Battery",            "value": "1" },
-            { "label": "Day Name",           "value": "2" },
-            { "label": "Day Number",         "value": "3" },
-            { "label": "Month Name",         "value": "4" },
-            { "label": "Month Number",       "value": "5" },
-            { "label": "Steps",              "value": "6" },
-            { "label": "Sleep",              "value": "7" },
-            { "label": "Alternate Timezone", "value": "8" }
+            { "label": "Menacing SFX",       "value": "1" },
+            { "label": "Battery",            "value": "2" },
+            { "label": "Day Name",           "value": "3" },
+            { "label": "Day Number",         "value": "4" },
+            { "label": "Month Name",         "value": "5" },
+            { "label": "Month Number",       "value": "6" },
+            { "label": "Steps",              "value": "7" },
+            { "label": "Sleep",              "value": "8" },
+            { "label": "Alternate Timezone", "value": "9" }
           ]
         },
         { "type": "select", "messageKey": "comp2Value",
@@ -234,14 +236,15 @@
           "defaultValue": "0",
           "options": [
             { "label": "Tick SFX",           "value": "0" },
-            { "label": "Battery",            "value": "1" },
-            { "label": "Day Name",           "value": "2" },
-            { "label": "Day Number",         "value": "3" },
-            { "label": "Month Name",         "value": "4" },
-            { "label": "Month Number",       "value": "5" },
-            { "label": "Steps",              "value": "6" },
-            { "label": "Sleep",              "value": "7" },
-            { "label": "Alternate Timezone", "value": "8" }
+            { "label": "Menacing SFX",       "value": "1" },
+            { "label": "Battery",            "value": "2" },
+            { "label": "Day Name",           "value": "3" },
+            { "label": "Day Number",         "value": "4" },
+            { "label": "Month Name",         "value": "5" },
+            { "label": "Month Number",       "value": "6" },
+            { "label": "Steps",              "value": "7" },
+            { "label": "Sleep",              "value": "8" },
+            { "label": "Alternate Timezone", "value": "9" }
           ]
         },
         { "type": "select", "messageKey": "comp3Value",

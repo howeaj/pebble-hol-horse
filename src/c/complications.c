@@ -46,6 +46,7 @@ typedef struct Complication {
 
     /* `value` has a different meaning for each ComplicationType:
         ComplicationType_Tick:      N/A (bitmap only)
+        ComplicationType_Menacing:  N/A (bitmap only)
         ComplicationType_Battery:   Remaining % (0-99), set by update_complication_display_value()
         ComplicationType_DayName:   N/A (text only)
         ComplicationType_DayNum:    N/A (text only)
@@ -68,6 +69,7 @@ typedef struct Complication {
 static GFont s_font;
 static AppTimer* s_animation_timer = NULL;
 static GBitmap* s_tick;
+static GBitmap* s_go;
 static Complication complications[NUM_COMPLICATIONS];
 
 static const uint32_t s_frames_per_state[ComplicationState_MAX] = {
@@ -78,7 +80,7 @@ static const uint32_t s_frames_per_state[ComplicationState_MAX] = {
 };
 
 static inline bool complication_is_text(const Complication* complication) {
-    return complication->type != ComplicationType_Tick;
+    return complication->type > ComplicationType_Menacing;
 }
 
 /// Return how many pixels upwards the complication will move in its lifetime
@@ -334,6 +336,10 @@ static void update_complication_display_value(Complication* complication) {
             complication->bitmap = s_tick;
             break;
         }
+        case ComplicationType_Menacing: {
+            complication->bitmap = s_go;
+            break;
+        }
         case ComplicationType_Battery: {
             complication->value = battery_state_service_peek().charge_percent;
             const int len = snprintf(complication->text, MAX_TEXT_SIZE, "%u%%", (uint8_t)MIN(99, complication->value));
@@ -418,6 +424,7 @@ static void update_complication_size(Complication* complication) {
             complication->rect.size = (GSize){53, 22};
             break;
         case ComplicationType_Tick:
+        case ComplicationType_Menacing:
             complication->rect = gbitmap_get_bounds(complication->bitmap);
             break;
         default:
@@ -733,9 +740,11 @@ void complications_configure(const Config* config){
 void complications_init(void) {
     s_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MANGA_22));
     s_tick = gbitmap_create_with_resource(RESOURCE_ID_TICK);
+    s_go = gbitmap_create_with_resource(RESOURCE_ID_GO);
 }
 
 void complications_destroy(void) {
     fonts_unload_custom_font(s_font);
     gbitmap_destroy(s_tick);
+    gbitmap_destroy(s_go);
 }

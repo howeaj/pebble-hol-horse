@@ -64,14 +64,15 @@
 
 typedef enum ComplicationType {
     ComplicationType_Tick = 0,
-    ComplicationType_Battery = 1,
-    ComplicationType_DayName = 2,
-    ComplicationType_DayNum = 3,
-    ComplicationType_MonthName = 4,
-    ComplicationType_MonthNum = 5,
-    ComplicationType_Steps = 6,  // value = isDistance
-    ComplicationType_Sleep = 7, // value = isRestful
-    ComplicationType_Timezone = 8,  // value = offsetHours
+    ComplicationType_Menacing = 1,
+    ComplicationType_Battery = 2,
+    ComplicationType_DayName = 3,
+    ComplicationType_DayNum = 4,
+    ComplicationType_MonthName = 5,
+    ComplicationType_MonthNum = 6,
+    ComplicationType_Steps = 7,  // value = isDistance
+    ComplicationType_Sleep = 8, // value = isRestful
+    ComplicationType_Timezone = 9,  // value = offsetHours
     // TODO temperature
     // TODO weather?
     // TODO bluetooth?

@@ -136,9 +136,9 @@ var clay = new Clay(clayConfig, function(minified) {
         clayConfig.getItemById(this.messageKey + "TimezoneText").hide();
         clayConfig.getItemById(this.messageKey + "TimezoneValue").hide();
 
-        if (this.get() === "6") {
+        if (this.get() === "7") {
             clayConfig.getItemById(this.messageKey + "StepsUnit").show();
-        } else if (this.get() === "8") {
+        } else if (this.get() === "9") {
             clayConfig.getItemById(this.messageKey + "TimezoneText").show();
             clayConfig.getItemById(this.messageKey + "TimezoneValue").show();
         }
@@ -200,6 +200,3 @@ var clay = new Clay(clayConfig, function(minified) {
     });
 
 });
-
-// TODO clay.registerComponent(require('./yoshiColorPicker'));
-// or https://github.com/jrmobley/pebble-clay-preview-component

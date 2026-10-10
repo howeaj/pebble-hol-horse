@@ -61,6 +61,7 @@
         {"type": "bitmap", "file": "app_icon.png", "name": "APP_ICON", "menuIcon": true},
         {"type": "bitmap", "file": "face.png", "name": "FACE_REAL"},
         {"type": "bitmap", "file": "tick.png", "name": "TICK"},
+        {"type": "bitmap", "file": "go.png", "name": "GO"},
         {"type": "bitmap", "memoryFormat": "2BitPalette", "file": "hand_hour_0.png",    "name": "HAND_HOUR_0"},
         {"type": "bitmap", "memoryFormat": "2BitPalette", "file": "hand_hour_7-5.png",  "name": "HAND_HOUR_7_5"},
         {"type": "bitmap", "memoryFormat": "2BitPalette", "file": "hand_hour_15.png",   "name": "HAND_HOUR_15"},
