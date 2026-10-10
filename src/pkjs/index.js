@@ -25,6 +25,8 @@ var clay = new Clay(clayConfig, function(minified) {
             setColor('secondColor',   0x000000);
             setColor('compFgColors',  0xaa00aa);
             setColor('compBgColors',  0x00ff00);
+            setColor('status1Color',  0xaa0000);
+            setColor('status2Color',  0x0000aa);
             setColor('faceTextColor', 0xaaaaaa);
             break;
         case "The World":
@@ -35,6 +37,8 @@ var clay = new Clay(clayConfig, function(minified) {
             setColor('secondColor',   0xffffff);
             setColor('compFgColors',  0x00ff00);
             setColor('compBgColors',  0xaa00aa);
+            setColor('status1Color',  0xaa0000);
+            setColor('status2Color',  0x0000aa);
             setColor('faceTextColor', 0x555555);
             break;
         case "Magician's Red":
@@ -45,6 +49,8 @@ var clay = new Clay(clayConfig, function(minified) {
             setColor('secondColor',   0xffffff);
             setColor('compFgColors',  0xaa0000);
             setColor('compBgColors',  0xaa0055);
+            setColor('status1Color',  0xaa0000);
+            setColor('status2Color',  0x0000aa);
             setColor('faceTextColor', 0xffaaaa);
             break;
         case "Silver Chariot":
@@ -55,6 +61,8 @@ var clay = new Clay(clayConfig, function(minified) {
             setColor('secondColor',   0x555555);
             setColor('compFgColors',  0x000000);
             setColor('compBgColors',  0x555555);
+            setColor('status1Color',  0xaa0000);
+            setColor('status2Color',  0x0000aa);
             setColor('faceTextColor', 0xffffff);
             break;
         case "Dark Blue Moon":
@@ -65,6 +73,8 @@ var clay = new Clay(clayConfig, function(minified) {
             setColor('secondColor',   0xffff00);
             setColor('compFgColors',  0xffff00);
             setColor('compBgColors',  0xaa55ff);
+            setColor('status1Color',  0xaa0000);
+            setColor('status2Color',  0x0000aa);
             setColor('faceTextColor', 0xffffaa);
             break;
         // case "Star Platinum":
@@ -183,6 +193,8 @@ var clay = new Clay(clayConfig, function(minified) {
         clayConfig.getItemByMessageKey("compFgColors").on("change", setCompFgColors);
         clayConfig.getItemByMessageKey("compBgColors").on("change", setCompBgColors);
 
+        register_toggle_group("connStatusEnabled");
+        register_toggle_group("quietStatusEnabled");
         register_toggle_group("faceTextEnabled");
         register_toggle_group("batteryMeterEnabled");
 

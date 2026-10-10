@@ -36,7 +36,16 @@
   },
   { "type": "section",
     "items": [
-      { "type": "heading", "defaultValue": "Background features" },
+      { "type": "heading", "defaultValue": "Features" },
+
+      { "type": "toggle", "messageKey": "connStatusEnabled", "label": "Bluetooth disconnect indicator", "defaultValue": true },
+      { "type": "color", "messageKey": "status1Color", "group": "connStatusEnabledToggleGroup",
+        "label": "Bluetooth disconnect color", "defaultValue": "aa0000" },
+
+      { "type": "toggle", "messageKey": "quietStatusEnabled", "label": "Quiet time indicator", "defaultValue": true },
+      { "type": "color", "messageKey": "status2Color", "group": "quietStatusEnabledToggleGroup",
+        "label": "Quiet time color", "defaultValue": "0000aa" },
+
       { "type": "color", "messageKey": "faceTextColor", "label": "Brand text / meter colour", "defaultValue": "aaaaaa" },
       { "type": "toggle", "messageKey": "faceTextEnabled", "label": "Brand text", "defaultValue": false },
       { "type": "input", "messageKey": "faceText", "group": "faceTextEnabledToggleGroup",

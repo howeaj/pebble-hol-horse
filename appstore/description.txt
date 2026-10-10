@@ -11,6 +11,9 @@ Configurable features:
         - Steps
         - Sleep
         - Alternate Timezone
+    - Status icons:
+        - Bluetooth disconnection
+        - Quiet time
     - Colour (preset and custom themes)
     - Custom text (brand, monogram etc)
     - Animation speed: Normal, Fast or Off
@@ -18,8 +21,6 @@ Configurable features:
 
 Coming soon:
     - Weather, rain, uv index etc.
-    - Bluetooth connection
-    - Quiet time
     - Live-preview colour customisation
 
 Requests and suggestions welcome!

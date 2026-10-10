@@ -40,6 +40,8 @@
     MACRO(COLOR, GColor,,                comp1BgColor,        GColorGreen) \
     MACRO(COLOR, GColor,,                comp2BgColor,        GColorGreen) \
     MACRO(COLOR, GColor,,                comp3BgColor,        GColorGreen) \
+    MACRO(COLOR, GColor,,                status1Color,        GColorDarkCandyAppleRed) \
+    MACRO(COLOR, GColor,,                status2Color,        GColorDukeBlue) \
     MACRO(ENUM,  ComplicationType,,      comp1Type,           ComplicationType_Tick) \
     MACRO(ENUM,  ComplicationType,,      comp2Type,           ComplicationType_Tick) \
     MACRO(ENUM,  ComplicationType,,      comp3Type,           ComplicationType_Tick) \
@@ -53,6 +55,8 @@
     MACRO(STR,   char, [TZ_TEXT_SIZE],   comp2TimezoneText,   "alt") \
     MACRO(STR,   char, [TZ_TEXT_SIZE],   comp3TimezoneText,   "alt") \
     MACRO(ENUM,  AnimationSpeed,,        animationSpeed,      AnimationSpeed_Normal) \
+    MACRO(BOOL,  bool,,                  quietStatusEnabled,  true) \
+    MACRO(BOOL,  bool,,                  connStatusEnabled,   true) \
     MACRO(BOOL,  bool,,                  batteryMeterEnabled, false) \
     MACRO(INT,   uint8_t,,               batteryLowPercent,   20) \
     MACRO(COLOR, GColor,,                batteryLowColor,     GColorRed) \
@@ -75,7 +79,6 @@ typedef enum ComplicationType {
     ComplicationType_Timezone = 9,  // value = offsetHours
     // TODO temperature
     // TODO weather?
-    // TODO bluetooth?
     // Heartrate not supported because PR2 doesn't have one
 } ComplicationType;
 

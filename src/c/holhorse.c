@@ -1,13 +1,12 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
 /* TODO
-    - state indicators
-        - quiet time
-        - bluetooth disconnect
+    - restful sleep option
     - animation improvements
         - mask instead of bounding box
             - how to get text mask??
-        - don't wakeup when nothing moving up
+        - don't wakeup when nothing needs updates
+        - don't dirty entire framebuffer
     - more colour themes
     - -flto gcc opt
     - emery support
@@ -148,6 +147,8 @@ static void draw_hand_sec_shadow(Layer* layer, GContext* ctx, int32_t angle) {
 static GBitmap* s_face;
 static GFont s_face_font;
 static char s_face_text[FACE_TEXT_SIZE];
+static GBitmap* s_icon_disconnect;
+static GBitmap* s_icon_silence;
 
 #define MAX_NUM_SECONDS (3)
 static int8_t s_num_seconds_shown = 0;
@@ -190,6 +191,33 @@ static void handle_battery(BatteryChargeState charge) {
     s_battery_pixels = MUL_FRACT(max_width, charge.charge_percent, 100);
 
     mark_root_window_dirty(true);
+}
+
+static void handle_connection(bool is_connected) {
+    LOG("is_connected changed to %s", BOOL_TO_STR(is_connected));
+    mark_root_window_dirty(true);  // TODO could avoid a full redraw (probably not worth it)
+}
+
+static void draw_disconnect_status(const GRect bounds, GContext* ctx) {
+    UNUSED(bounds);
+    if (!connection_service_peek_pebble_app_connection() || FORCE_BLUETOOTH_DISCONNECT) {
+        const GRect rect = {
+            .origin = {187, 33},
+            .size = gbitmap_get_bounds(s_icon_disconnect).size,
+        };
+        graphics_draw_bitmap_in_rect(ctx, s_icon_disconnect, rect);
+    }
+}
+
+static void draw_quiet_time_status(const GRect bounds, GContext* ctx) {
+    UNUSED(bounds);
+    if (quiet_time_is_active() || FORCE_QUIET_TIME) {
+        const GRect rect = {
+            .origin = {35, 43},  // note {9, 86} would be the next section down
+            .size = gbitmap_get_bounds(s_icon_silence).size,
+        };
+        graphics_draw_bitmap_in_rect(ctx, s_icon_silence, rect);
+    }
 }
 
 static void draw_battery_meter(const GRect bounds, GContext* ctx) {
@@ -243,29 +271,33 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
     // TRACE("draw_root_layer; s_num_seconds_shown = %d", s_num_seconds_shown);
     PROFILE_START();
 
-    const GRect bounds = layer_get_bounds(layer);
-
     graphics_context_set_compositing_mode(ctx, GCompOpSet); // enable transparency
     if (s_is_full_redraw)
     {
+        const GRect bounds = layer_get_bounds(layer);
+        const Config* config = config_get();
 
 #if DEBUG_DRAW_FACE
-        graphics_context_set_fill_color(ctx, config_get()->bgColor);
+        graphics_context_set_fill_color(ctx, config->bgColor);
         graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 #endif // DEBUG_DRAW_FACE
 
         // baked face bitmap
         graphics_draw_bitmap_in_rect(ctx, s_face, bounds);
-
 #if DEBUG_DRAW_FACE
         draw_face(bounds, ctx);
 #endif // DEBUG_DRAW_FACE
 
-        // face brand text
-        if (config_get()->faceTextEnabled) {
+        if (config->connStatusEnabled) {
+            draw_disconnect_status(bounds, ctx);
+        }
+        if (config->quietStatusEnabled) {
+            draw_quiet_time_status(bounds, ctx);
+        }
+        if (config->faceTextEnabled) {
             draw_face_text(bounds, ctx);
         }
-        if (config_get()->batteryMeterEnabled) {
+        if (config->batteryMeterEnabled) {
             draw_battery_meter(bounds, ctx);
         }
 
@@ -304,6 +336,9 @@ static void set_bitmap_colors(const Config* config) {
     gbitmap_set_color(s_face, 3, config->minuteColor);
     gbitmap_set_color(s_face, 4, config->hourColor);
 
+    gbitmap_set_color(s_icon_disconnect, 0, config->status1Color);
+    gbitmap_set_color(s_icon_silence, 0, config->status2Color);
+
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
         gbitmap_set_color(s_hour_hand_bitmaps[i], 0, config->hourColor);
         gbitmap_set_color(s_hour_hand_bitmaps[i], 3, bgColor);
@@ -317,6 +352,8 @@ static void set_bitmap_colors(const Config* config) {
 static void init_resources(Layer *root_layer) {
     complications_init();
     s_face = gbitmap_create_with_resource(RESOURCE_ID_FACE_REAL);
+    s_icon_disconnect = gbitmap_create_with_resource(RESOURCE_ID_MENACING);
+    s_icon_silence = gbitmap_create_with_resource(RESOURCE_ID_SILENCE);
     s_face_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_SERIF_18));
     s_hour_hand_bitmaps[0] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_0);
     s_hour_hand_bitmaps[1] = gbitmap_create_with_resource(RESOURCE_ID_HAND_HOUR_7_5);
@@ -336,9 +373,12 @@ static void init_resources(Layer *root_layer) {
 }
 
 static void destroy_resources(void) {
+    connection_service_unsubscribe();
     battery_state_service_unsubscribe();
     complications_destroy();
     gbitmap_destroy(s_face);
+    gbitmap_destroy(s_icon_disconnect);
+    gbitmap_destroy(s_icon_silence);
     fonts_unload_custom_font(s_face_font);
     for (size_t i = 0; i < ARRAY_LEN(s_hour_hand_bitmaps); i++) {
         gbitmap_destroy(s_hour_hand_bitmaps[i]);
@@ -435,6 +475,7 @@ static void main_window_load(Window *window) {
     Layer* const root_layer = window_get_root_layer(window);
     layer_set_update_proc(root_layer, draw_root_layer);
     init_resources(root_layer);
+    connection_service_subscribe((ConnectionHandlers){handle_connection, NULL});
     accel_tap_service_subscribe(accel_tap_handler);
     app_timer_register(1, activation_handler, NULL);
 
