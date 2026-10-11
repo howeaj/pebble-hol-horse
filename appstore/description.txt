@@ -1,9 +1,12 @@
-Hol Horse's watch from Jojo's Bizarre Adventure. Shake to show seconds and 3 custom complications. Very configurable.
+Analogue watch used by Hol Horse from Jojo's Bizarre Adventure. Shake to show seconds and 3 custom complications; very configurable!
 
-Tags: roman numerals, analogue, round, anime, manga, novelty, functional, ornate, fancy, efficient, jjba
+Tags: roman numerals, round, anime, manga, novelty, functional, ornate, fancy, efficient, japanese, 日本語, jjba
 
 Configurable features:
     - Battery meter
+    - Status icons:
+        - Bluetooth disconnection (ゴゴゴ)
+        - Quiet time (しーん)
     - Complications:
         - Battery %
         - Day name or number
@@ -11,17 +14,14 @@ Configurable features:
         - Steps (count or distance)
         - Sleep (all or restful)
         - Alternate Timezone
-    - Status icons:
-        - Bluetooth disconnection
-        - Quiet time
-    - Colour fully customisable (preset and custom themes)
-    - Custom text (brand, monogram etc)
+    - Custom text (brand, monogram etc.)
+    - Colours fully customisable (preset and custom themes)
     - Animation speed: Normal, Fast or Off
     - Individually set each complication to be always visible, show on shake or disabled entirely.
 
 Coming soon:
-    - Weather, rain, uv index etc.
+    - Weather, temperature, rain, uv index etc.
     - Live-preview colour customisation
 
-Requests and suggestions welcome!
+Requests, suggestions, bug reports and new preset themes welcome - use the Contact Developer button!
 If you like the style but a feature you need is missing, just let me know!

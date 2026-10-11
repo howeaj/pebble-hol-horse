@@ -71,7 +71,7 @@ void dissolve_bitmap(GBitmap *bitmap) {
         - doesn't clip rect within the framebuffer's bounds
         - only supports 8bit frame buffers (i.e. colour screens Basalt/Emery/Gabbro)
         - doesn't work on Chalk (packed GBitmapFormat8BitCircular framebuffer not supported)
-        - sets the entire framebuffer dirty, which sucks but GETAFIX ignores dirty anyway
+        - sets the entire framebuffer dirty
 */
 void dissolve_rect(GContext* ctx, GRect rect, GColor color) {
     GBitmap * const bitmap = graphics_capture_frame_buffer(ctx);
@@ -109,6 +109,5 @@ void dissolve_rect(GContext* ctx, GRect rect, GColor color) {
     }
 
     // API graphics_release_frame_buffer sets the entire framebuffer dirty instead of letting you control it
-    // ... but GETAFIX (PR2) display driver ignores the dirty rect anyway (see compositor_display_update())
     graphics_release_frame_buffer(ctx, bitmap);
 }
