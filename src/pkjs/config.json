@@ -40,20 +40,19 @@
 
       { "type": "toggle", "messageKey": "connStatusEnabled", "label": "Bluetooth disconnect indicator", "defaultValue": true },
       { "type": "color", "messageKey": "status1Color", "group": "connStatusEnabledToggleGroup",
-        "label": "Bluetooth disconnect color", "defaultValue": "aa0000" },
+        "label": "Bluetooth disconnect colour", "defaultValue": "aa0000" },
 
       { "type": "toggle", "messageKey": "quietStatusEnabled", "label": "Quiet time indicator", "defaultValue": true },
       { "type": "color", "messageKey": "status2Color", "group": "quietStatusEnabledToggleGroup",
-        "label": "Quiet time color", "defaultValue": "0000aa" },
-
-      { "type": "color", "messageKey": "faceTextColor", "label": "Brand text / meter colour", "defaultValue": "aaaaaa" },
-      { "type": "toggle", "messageKey": "faceTextEnabled", "label": "Brand text", "defaultValue": false },
-      { "type": "input", "messageKey": "faceText", "group": "faceTextEnabledToggleGroup",
-        "defaultValue": "pebble",
-        "attributes": {"maxlength": 10,  "pattern": "[a-zA-Z. ]*"}
-      },
+        "label": "Quiet time colour", "defaultValue": "0000aa" },
 
       { "type": "toggle", "messageKey": "batteryMeterEnabled", "label": "Battery meter", "defaultValue": false },
+      { "type": "input", "messageKey": "faceText", "group": "batteryMeterEnabledToggleGroup",
+        "label": "Brand text", "defaultValue": "pebble",
+        "attributes": {"maxlength": 10,  "pattern": "[a-zA-Z. ]*"}
+      },
+      { "type": "color", "messageKey": "faceTextColor", "group": "batteryMeterEnabledToggleGroup",
+        "label": "Battery meter colour", "defaultValue": "aaaaaa" },
       { "type": "slider", "messageKey": "batteryLowPercent", "label": "Low battery warning %",
         "group": "batteryMeterEnabledToggleGroup",
         "description": "Meter changes colour at this % remaining",

@@ -54,7 +54,6 @@
       "batteryMeterEnabled",
       "batteryLowPercent",
       "batteryLowColor",
-      "faceTextEnabled",
       "faceTextColor",
       "faceText"
     ],

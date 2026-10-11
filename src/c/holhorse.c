@@ -294,10 +294,8 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
         if (config->quietStatusEnabled) {
             draw_quiet_time_status(bounds, ctx);
         }
-        if (config->faceTextEnabled) {
-            draw_face_text(bounds, ctx);
-        }
         if (config->batteryMeterEnabled) {
+            draw_face_text(bounds, ctx);
             draw_battery_meter(bounds, ctx);
         }
 

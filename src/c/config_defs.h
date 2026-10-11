@@ -60,7 +60,6 @@
     MACRO(BOOL,  bool,,                  batteryMeterEnabled, false) \
     MACRO(INT,   uint8_t,,               batteryLowPercent,   20) \
     MACRO(COLOR, GColor,,                batteryLowColor,     GColorRed) \
-    MACRO(BOOL,  bool,,                  faceTextEnabled,     false) \
     MACRO(COLOR, GColor,,                faceTextColor,       GColorLightGray) \
     MACRO(STR,   char, [FACE_TEXT_SIZE], faceText,            "pebble") \
 /* end of X_CONFIG_OPTIONS */

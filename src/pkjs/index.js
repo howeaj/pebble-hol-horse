@@ -195,7 +195,6 @@ var clay = new Clay(clayConfig, function(minified) {
 
         register_toggle_group("connStatusEnabled");
         register_toggle_group("quietStatusEnabled");
-        register_toggle_group("faceTextEnabled");
         register_toggle_group("batteryMeterEnabled");
 
         for (var compMode of clayConfig.getItemsByGroup("compModes")) {

@@ -551,10 +551,10 @@ static void complication_start(uint32_t index, bool avoid_second_hand) {
     };
 
     // Start searching from the previous complication's angle
-    // TODO starting from 0 can waste some space; start from the hour hand? start from a random hand?
+    // TODO starting from a fixed angle can waste some space; start from the hour hand? start from a random hand?
     // WONTDO handle comp2 disabled but comp1 and comp3 enabled
     int32_t start_angle_deg = 0;
-    if (config_get()->faceTextEnabled) {
+    if (config_get()->batteryMeterEnabled) {
         start_angle_deg = 90;
     }
     if (index > 0) {

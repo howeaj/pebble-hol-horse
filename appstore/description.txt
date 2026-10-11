@@ -5,7 +5,7 @@ Tags: roman numerals, analogue, round, anime, manga, novelty, functional, ornate
 Configurable features:
     - Battery meter
     - Complications:
-        - Battery level
+        - Battery %
         - Day name or number
         - Month name or number
         - Steps
@@ -14,7 +14,7 @@ Configurable features:
     - Status icons:
         - Bluetooth disconnection
         - Quiet time
-    - Colour (preset and custom themes)
+    - Colour fully customisable (preset and custom themes)
     - Custom text (brand, monogram etc)
     - Animation speed: Normal, Fast or Off
     - Individually set each complication to be always visible, show on shake or disabled entirely.
