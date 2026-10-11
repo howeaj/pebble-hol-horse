@@ -110,6 +110,15 @@
           ]
         },
         { "type": "select", "messageKey": "comp1Value",
+          "group": "comp1ModeToggleGroup", "id": "comp1TypeSleepUnit",
+          "label": "Sleep type",
+          "defaultValue": "0",
+          "options": [
+            { "value": "0", "label": "All" },
+            { "value": "1", "label": "Restful" }
+          ]
+        },
+        { "type": "select", "messageKey": "comp1Value",
           "group": "comp1ModeToggleGroup", "id": "comp1TypeTimezoneText",
           "label": "Timezone",
           "defaultValue": "M",
@@ -184,6 +193,15 @@
           "options": [
             { "value": "0", "label": "Kilosteps" },
             { "value": "1", "label": "Kilometres" }
+          ]
+        },
+        { "type": "select", "messageKey": "comp2Value",
+          "group": "comp2ModeToggleGroup", "id": "comp2TypeSleepUnit",
+          "label": "Sleep type",
+          "defaultValue": "0",
+          "options": [
+            { "value": "0", "label": "All" },
+            { "value": "1", "label": "Restful" }
           ]
         },
         { "type": "select", "messageKey": "comp2Value",
@@ -262,6 +280,15 @@
           "options": [
             { "value": "0", "label": "Kilosteps" },
             { "value": "1", "label": "Kilometres" }
+          ]
+        },
+        { "type": "select", "messageKey": "comp3Value",
+          "group": "comp3ModeToggleGroup", "id": "comp3TypeSleepUnit",
+          "label": "Sleep type",
+          "defaultValue": "0",
+          "options": [
+            { "value": "0", "label": "All" },
+            { "value": "1", "label": "Restful" }
           ]
         },
         { "type": "select", "messageKey": "comp3Value",

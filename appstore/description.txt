@@ -8,8 +8,8 @@ Configurable features:
         - Battery %
         - Day name or number
         - Month name or number
-        - Steps
-        - Sleep
+        - Steps (count or distance)
+        - Sleep (all or restful)
         - Alternate Timezone
     - Status icons:
         - Bluetooth disconnection

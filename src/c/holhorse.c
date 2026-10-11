@@ -1,7 +1,6 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
 /* TODO
-    - restful sleep option
     - animation improvements
         - mask instead of bounding box
             - how to get text mask??
