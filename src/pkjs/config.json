@@ -9,8 +9,9 @@
           {"label": "Emperor", "value": "Emperor" },
           {"label": "The World", "value": "The World" },
           {"label": "Magician's Red", "value": "Magician's Red" },
-          {"label": "Silver Chariot", "value": "Silver Chariot" },
+          {"label": "Hierophant Green", "value": "Hierophant Green" },
           {"label": "Dark Blue Moon", "value": "Dark Blue Moon" },
+          {"label": "Silver Chariot", "value": "Silver Chariot" },
           {"label": "Custom", "value": "Custom" }
         ]
       },
@@ -38,11 +39,11 @@
     "items": [
       { "type": "heading", "defaultValue": "Features" },
 
-      { "type": "toggle", "messageKey": "connStatusEnabled", "label": "Bluetooth disconnect indicator", "defaultValue": true },
+      { "type": "toggle", "messageKey": "connStatusEnabled", "label": "Bluetooth disconnect indicator (ゴゴゴ)", "defaultValue": true },
       { "type": "color", "messageKey": "status1Color", "group": "connStatusEnabledToggleGroup",
         "label": "Bluetooth disconnect colour", "defaultValue": "aa0000" },
 
-      { "type": "toggle", "messageKey": "quietStatusEnabled", "label": "Quiet time indicator", "defaultValue": true },
+      { "type": "toggle", "messageKey": "quietStatusEnabled", "label": "Quiet time indicator (しーん)", "defaultValue": true },
       { "type": "color", "messageKey": "status2Color", "group": "quietStatusEnabledToggleGroup",
         "label": "Quiet time colour", "defaultValue": "0000aa" },
 

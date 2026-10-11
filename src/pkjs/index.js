@@ -53,17 +53,17 @@ var clay = new Clay(clayConfig, function(minified) {
             setColor('status2Color',  0x0000aa);
             setColor('faceTextColor', 0xffaaaa);
             break;
-        case "Silver Chariot":
-            setColor('bgColors',      0xaaaaaa);
-            setColor('fgColors',      0xffffff);
-            setColor('hourColor',     0x555555);
-            setColor('minuteColor',   0x555555);
-            setColor('secondColor',   0x555555);
-            setColor('compFgColors',  0x000000);
-            setColor('compBgColors',  0x555555);
+        case "Hierophant Green":
+            setColor('bgColors',      0x005500);
+            setColor('fgColors',      0x55ff00);
+            setColor('hourColor',     0xffff00);
+            setColor('minuteColor',   0xffff00);
+            setColor('secondColor',   0xffff00);
+            setColor('compFgColors',  0xaa00aa);
+            setColor('compBgColors',  0x000055);
             setColor('status1Color',  0xaa0000);
-            setColor('status2Color',  0x0000aa);
-            setColor('faceTextColor', 0xffffff);
+            setColor('status2Color',  0x0000ff);
+            setColor('faceTextColor', 0x55ff00);
             break;
         case "Dark Blue Moon":
             setColor('bgColors',      0x000055);
@@ -77,9 +77,20 @@ var clay = new Clay(clayConfig, function(minified) {
             setColor('status2Color',  0x0000aa);
             setColor('faceTextColor', 0xffffaa);
             break;
+        case "Silver Chariot":
+            setColor('bgColors',      0xaaaaaa);
+            setColor('fgColors',      0xffffff);
+            setColor('hourColor',     0x555555);
+            setColor('minuteColor',   0x555555);
+            setColor('secondColor',   0x555555);
+            setColor('compFgColors',  0x000000);
+            setColor('compBgColors',  0x555555);
+            setColor('status1Color',  0xaa0000);
+            setColor('status2Color',  0x0000aa);
+            setColor('faceTextColor', 0xffffff);
+            break;
         // case "Star Platinum":
         // case "Hermit Purple":
-        // case "Hierophant Green":
         // case "Yellow Temperance":
         // case "Ebony Devil":
         // case "Sun":
