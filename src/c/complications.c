@@ -140,6 +140,14 @@ static inline GRect rect_bottom_rows(GRect rect, uint32_t rows) {
     );
 }
 
+// Erase any complication pixels from `rect` by copying pixels from its bgbuffer
+static void complication_erase_rect(GContext* ctx, Complication* complication, GRect rect) {
+    const GRect original_bounds = gbitmap_get_bounds(complication->bgbuffer);
+    gbitmap_set_bounds(complication->bgbuffer, rect_relative_origin(rect, complication->bgbuffer_origin));
+    graphics_draw_bitmap_in_rect(ctx, complication->bgbuffer, rect);
+    gbitmap_set_bounds(complication->bgbuffer, original_bounds);
+}
+
 /** Update `complication`'s rect and apply any special effects according to its ComplicationState.
     Return if the complication should be erased and/or drawn.
 */
@@ -187,18 +195,10 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
             // also float upwards by framebuffer translation
             if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
                 #if !DEBUG_SHOW_COMPL_RECTS
-                    // copy every row upwards
                     const GColor colorMask[2] = {complication->color1, complication->color2};
                     translate_rect(ctx, target_rect, GVector(0, -1), colorMask, 2);
-
-                    // erase the bottom row
-                    // TODO split out erase func for here and the other erase
                     const GRect bottom_row = rect_bottom_rows(target_rect, 1);
-                    const GRect original_bounds = gbitmap_get_bounds(complication->bgbuffer);
-                    gbitmap_set_bounds(complication->bgbuffer, rect_relative_origin(bottom_row, complication->bgbuffer_origin));
-                    graphics_draw_bitmap_in_rect(ctx, complication->bgbuffer, bottom_row);
-                    gbitmap_set_bounds(complication->bgbuffer, original_bounds);
-
+                    complication_erase_rect(ctx, complication, bottom_row);
                     complication->rect.origin.y -= 1;
                 #endif // !DEBUG_SHOW_COMPL_RECTS
             }
@@ -319,10 +319,7 @@ static void complication_draw_animated(GContext* ctx, Complication* complication
     apply_complication_state_effects(ctx, complication, is_full_redraw, state_changed, &erase, &draw);
 
     if (erase) {
-        const GRect original_bounds = gbitmap_get_bounds(complication->bgbuffer);
-        gbitmap_set_bounds(complication->bgbuffer, rect_relative_origin(prev_rect, complication->bgbuffer_origin));
-        graphics_draw_bitmap_in_rect(ctx, complication->bgbuffer, prev_rect);
-        gbitmap_set_bounds(complication->bgbuffer, original_bounds);
+        complication_erase_rect(ctx, complication, prev_rect);
     }
 
     if (draw) {
