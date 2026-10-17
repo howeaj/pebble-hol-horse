@@ -7,6 +7,7 @@
 #include "complications.h"
 
 #include "analogue.h"
+#include "bitblt.h"
 #include "config.h"
 #include "debug.h"
 #include "dissolve.h"
@@ -24,6 +25,8 @@
 #define COMPLICATION_RADIUS MUL_FRACT(PBL_DISPLAY_WIDTH, 1, 5) // distance from centre to place each complication
 #define FLOAT_PIXELS_PER_SECOND (6)
 #define FLOAT_FRAMES_PER_PIXEL (FRAMERATE / FLOAT_PIXELS_PER_SECOND)
+#define MAX_SHAKE (1)  // Maximum pixel offset from centre for Complication->shake_offset
+#define SHAD_OFF (2)  // Pixel offset of the complications' shadow
 
 typedef enum ComplicationState {
     ComplicationState_Off = 0,
@@ -34,12 +37,13 @@ typedef enum ComplicationState {
     ComplicationState_MAX,  // end-of-enum sentinel
 } ComplicationState;
 
-#define MAX_TEXT_SIZE (6)
+#define MAX_TEXT_SIZE (6)  // Maximum characters (incl. null terminator) in text fields
 
 typedef struct Complication {
     ComplicationMode mode;
     ComplicationType type;
     GBitmap* bitmap;
+    GBitmap* bgbuffer;  // the content of the framebuffer beneath the complication's future bounds
     char text[MAX_TEXT_SIZE];
     GColor color1;  // main
     GColor color2;  // shadow
@@ -94,12 +98,29 @@ static int16_t floatup_distance(uint32_t index) {
     return num_frames / FLOAT_FRAMES_PER_PIXEL;
 }
 
-#define SHAD_OFF (2)// Pixel offset of the complications' shadow
+// Return a random value (-MAXVAL <= x <= MAXVAL)
+#define RAND_AROUND_0(MAXVAL) ((rand() % (1 + ((MAXVAL) * 2))) - (MAXVAL))
+
+// The bounds of the rect's shadow
 static inline GRect shadow_rect(GRect rect) {
     return GRect(rect.origin.x - SHAD_OFF, rect.origin.y + SHAD_OFF, rect.size.w, rect.size.h);
 }
+
+// The combined bounds of both the shadow and the original rect
 static inline GRect rect_with_shadow(GRect rect) {
     return GRect(rect.origin.x - SHAD_OFF, rect.origin.y, rect.size.w + SHAD_OFF, rect.size.h + SHAD_OFF);
+}
+
+// Return the entire rect that a complication's bounds can cover for its entire life (incl. shadow, shake and float)
+static inline GRect lifetime_rect(GRect rect) {
+    const int16_t max_float = floatup_distance(0);
+    rect = rect_with_shadow(rect);
+    return GRect(
+        rect.origin.x - MAX_SHAKE,
+        rect.origin.y - max_float,
+        rect.size.w + (MAX_SHAKE * 2),
+        rect.size.h + MAX_SHAKE + max_float
+    );
 }
 
 /** Update `complication`'s rect and apply any special effects according to its ComplicationState.
@@ -114,35 +135,39 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
             break;
 
         case ComplicationState_Appear:
+            // erase and redraw at random offsets for a "shake" effect
             complication->shake_offset = (GPoint) {
-                (rand() % 3) - 1, (rand() % 3) - 1
+                RAND_AROUND_0(MAX_SHAKE), RAND_AROUND_0(MAX_SHAKE)
             };
             complication->rect.origin.x += complication->shake_offset.x;
             complication->rect.origin.y += complication->shake_offset.y;
+            ASSERT(draw && (erase || is_full_redraw));
             break;
 
         case ComplicationState_On:
+            // float upwards by erase & redraw
             if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
-#if !DEBUG_SHOW_COMPL_RECTS
-                complication->rect.origin.y -= 1;
-#endif // !DEBUG_SHOW_COMPL_RECTS
+                #if !DEBUG_SHOW_COMPL_RECTS
+                    complication->rect.origin.y -= 1;
+                #endif // !DEBUG_SHOW_COMPL_RECTS
+                ASSERT(draw && (erase || is_full_redraw));
             } else {
                 *erase = state_changed;
                 *draw = state_changed || is_full_redraw;
             }
             break;
 
-        // TODO mask the dissolve and translate to the bitmap's non-clear pixels
         case ComplicationState_Disappear:
-            // stop drawing the bitmap; "dissolve in" a background-coloured rect on top of it
-            dissolve_rect(ctx, rect_with_shadow(complication->rect), config_get()->bgColor);
+            // stop drawing the bitmap; we will "dissolve in" the background on top of it
+            // also float upwards by framebuffer translation
+            dissolve_rect(ctx, rect_with_shadow(complication->rect), GColorClear, complication->bgbuffer);
             if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
-#if !DEBUG_SHOW_COMPL_RECTS
-                complication->rect.size.h += 1;
-                translate_rect(ctx, rect_with_shadow(complication->rect), GVector(0, -1));
-                complication->rect.size.h -= 1;
-                complication->rect.origin.y -= 1;
-#endif // !DEBUG_SHOW_COMPL_RECTS
+                #if !DEBUG_SHOW_COMPL_RECTS
+                    complication->rect.size.h += 1;
+                    translate_rect(ctx, rect_with_shadow(complication->rect), GVector(0, -1));
+                    complication->rect.size.h -= 1;
+                    complication->rect.origin.y -= 1;
+                #endif // !DEBUG_SHOW_COMPL_RECTS
             }
             *erase = false;
             // The first frame of this state is a full redraw to remove the second hand.
@@ -217,9 +242,27 @@ static void draw_complication(GContext* ctx, const Complication* complication) {
 }
 
 static void complication_draw_animated(GContext* ctx, Complication* complication, bool is_full_redraw) {
+    // TODO maybe if (complication->animation_counter == s_frames_per_state[complication->state]){
+    if (is_full_redraw){
+        // snapshot the background for future redraws
+        // TODO need to snapshot all before drawing any!!
+        GBitmap * const framebuffer = graphics_capture_frame_buffer(ctx);
+        const GRect life_rect = lifetime_rect(complication->rect);
+        gbitmap_set_bounds(complication->bgbuffer, (GRect){{0, 0}, life_rect.size});
+        bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit(
+            complication->bgbuffer,  // dest
+            framebuffer, // src
+            gbitmap_get_bounds(complication->bgbuffer), // dest_rect
+            life_rect.origin  // src_origin_offset
+        );
+        graphics_release_frame_buffer(ctx, framebuffer);
+
+        // TODO These bounds are used for a different purpose than usual by dissolve_rect()
+        gbitmap_set_bounds(complication->bgbuffer, life_rect);
+    }
 
     // Save the previous bounds for erasure, then undo any shake
-    const GRect prev_rect = complication->rect;
+    const GRect prev_rect = rect_with_shadow(complication->rect);
     complication->rect.origin.x -= complication->shake_offset.x;
     complication->rect.origin.y -= complication->shake_offset.y;
 
@@ -238,13 +281,11 @@ static void complication_draw_animated(GContext* ctx, Complication* complication
     apply_complication_state_effects(ctx, complication, is_full_redraw, state_changed, &erase, &draw);
 
     if (erase) {
-        const GColor bgColor = config_get()->bgColor;
-        // If our placements were perfect it would be fine to erase the whole rect, but they aren't...
-        // graphics_context_set_fill_color(ctx, bgColor);
-        // graphics_fill_rect(ctx, prev_rect, 0, GCornerNone);
-
-        // ...so instead only erase exactly what we drew
-        graphics_draw_complication(ctx, complication, prev_rect, bgColor, bgColor);
+        const GRect life_rect = gbitmap_get_bounds(complication->bgbuffer);
+        gbitmap_set_bounds(complication->bgbuffer,  // TODO refactor
+            (GRect){gpoint_sub(prev_rect.origin, life_rect.origin), prev_rect.size});
+        graphics_draw_bitmap_in_rect(ctx, complication->bgbuffer, prev_rect);
+        gbitmap_set_bounds(complication->bgbuffer, life_rect);
     }
 
     if (draw) {
@@ -413,6 +454,7 @@ static void update_complication_display_value(Complication* complication) {
     }
 }
 
+#define MAX_COMPLICATION_SIZE GSize(65, 35)
 static void update_complication_size(Complication* complication) {
     switch (complication->type) {
         case ComplicationType_Timezone:
@@ -431,12 +473,15 @@ static void update_complication_size(Complication* complication) {
             break;
         case ComplicationType_Tick:
         case ComplicationType_Menacing:
-            complication->rect = gbitmap_get_bounds(complication->bitmap);
+            complication->rect = gbitmap_get_bounds(complication->bitmap);  // note they are both 42 * 35
             break;
         default:
             ASSERT(false);
             break;
     }
+
+    ASSERT(complication->rect.size.w <= MAX_COMPLICATION_SIZE.w);
+    ASSERT(complication->rect.size.h <= MAX_COMPLICATION_SIZE.h);
 }
 
 // how many segments to divide the clockface into for fallback gap detection
@@ -533,6 +578,7 @@ static void complication_activate(uint32_t index) {
     }
 }
 
+// Initialise or update the value, dimensions & initial position of a complication.
 static void complication_start(uint32_t index, bool avoid_second_hand) {
     ASSERT(index < NUM_COMPLICATIONS);
     Complication* const complication = &complications[index];
@@ -541,14 +587,12 @@ static void complication_start(uint32_t index, bool avoid_second_hand) {
     update_complication_size(complication);
 
     ///////// Choose starting location
-    // Calculate the total size of the complication including the distance it moves
-    // note this doesn't count the +-1 pixel shake on appear
     const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
+
+    // Calculate the total size of the complication over its whole lifetime
+    // TODO "Always-on" comps don't float up
     const int16_t floatup_dist = floatup_distance(index);
-    const GRect full_rect = rect_with_shadow(complication->rect);
-    const GSize total_size = {
-        full_rect.size.w, full_rect.size.h + floatup_dist
-    };
+    const GSize total_size = lifetime_rect(complication->rect).size;
 
     // Start searching from the previous complication's angle
     // TODO starting from a fixed angle can waste some space; start from the hour hand? start from a random hand?
@@ -747,10 +791,21 @@ void complications_init(void) {
     s_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MANGA_22));
     s_tick = gbitmap_create_with_resource(RESOURCE_ID_TICK);
     s_go = gbitmap_create_with_resource(RESOURCE_ID_GO);
+
+    // TODO doesn't need to be lifetime; only needs 1/3 of total float
+    const GSize bgbuffer_size = lifetime_rect((GRect){{0, 0}, MAX_COMPLICATION_SIZE}).size;
+    for (uint32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        // TODO support other framebuffer types
+        complications[i].bgbuffer = gbitmap_create_blank(bgbuffer_size, GBitmapFormat8Bit);
+    }
 }
 
 void complications_destroy(void) {
     fonts_unload_custom_font(s_font);
     gbitmap_destroy(s_tick);
     gbitmap_destroy(s_go);
+
+    for (uint32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        gbitmap_destroy(complications[i].bgbuffer);
+    }
 }

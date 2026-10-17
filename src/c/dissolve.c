@@ -64,7 +64,10 @@ void dissolve_bitmap(GBitmap *bitmap) {
     }
 }
 
-/** Randomly set each pixel in the framebuffer's `grect` to `color`, with a % chance per pixel.
+/** Randomly set each pixel in the framebuffer's `rect` to `color` or `background`, with a % chance per pixel.
+
+    `background` an optional bitmap (whose bounds encompass `rect`)
+                 from which to sample each pixel's color (instead of the provided `color`).
 
     Limitations:
         - hard-coded 25% chance (a good rate of dissolution at 30fps)
@@ -73,12 +76,16 @@ void dissolve_bitmap(GBitmap *bitmap) {
         - doesn't work on Chalk (packed GBitmapFormat8BitCircular framebuffer not supported)
         - sets the entire framebuffer dirty
 */
-void dissolve_rect(GContext* ctx, GRect rect, GColor color) {
+void dissolve_rect(GContext* ctx, GRect rect, GColor color, const GBitmap* background) {
     GBitmap * const bitmap = graphics_capture_frame_buffer(ctx);
     uint8_t* const data = gbitmap_get_data(bitmap);
     // gabbro's framebuffer format is set to circular despite it actually being rect
     // which causes gbitmap_get_bytes_per_row to return 0 instead of the real value
     const int16_t bytes_per_row = PBL_DISPLAY_WIDTH; // gbitmap_get_bytes_per_row(dest_bitmap);
+
+    // TODO assert background dimensions are valid
+    const GRect bgbounds = gbitmap_get_bounds(background);
+    const uint8_t* const bgdata = (background == NULL) ? NULL : gbitmap_get_data(background);
 
     const int16_t y_start = rect.origin.y;
     const int16_t y_end = rect.origin.y + rect.size.h;
@@ -92,6 +99,11 @@ void dissolve_rect(GContext* ctx, GRect rect, GColor color) {
 
     for (int16_t y = y_start; y < y_end; y++) {
         for (int16_t x = x_start; x < x_end; x++) {
+            if (bgdata != NULL) {
+                const int32_t bg_index = ((y - bgbounds.origin.y) * bgbounds.size.w) + x - bgbounds.origin.x;
+                ASSERT((bg_index < (bgbounds.size.w * bgbounds.size.h)) && (bg_index >= 0));
+                color = (GColor){bgdata[bg_index]};
+            }
             uint8_t* const pixel = &data[(y * bytes_per_row) + x];
             if (*pixel == color.argb) {
                 continue;
