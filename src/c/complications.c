@@ -45,6 +45,7 @@ typedef struct Complication {
     ComplicationType type;
     GBitmap* bitmap;
     GBitmap* bgbuffer;  // the content of the framebuffer beneath the complication's future bounds
+    GPoint bgbuffer_origin;  // origin (in framebuffer frame of reference) of bgbuffer
     char text[MAX_TEXT_SIZE];
     GColor color1;  // main
     GColor color2;  // shadow
@@ -124,6 +125,11 @@ static inline GRect lifetime_rect(GRect rect, uint32_t index) {
     );
 }
 
+// Return a rect equivalent to `child` with its origin moved to be relative to another `origin``
+static inline GRect rect_relative_origin(GRect child, GPoint origin) {
+    return (GRect){gpoint_sub(child.origin, origin), child.size};
+}
+
 /** Update `complication`'s rect and apply any special effects according to its ComplicationState.
     Return if the complication should be erased and/or drawn.
 */
@@ -159,9 +165,16 @@ static void apply_complication_state_effects(GContext* ctx, Complication* compli
             break;
 
         case ComplicationState_Disappear:
-            // stop drawing the bitmap; we will "dissolve in" the background on top of it
+            // stop drawing the complication; "dissolve in" the background on top of it
+            const GRect target_rect = rect_with_shadow(complication->rect);
+            dissolve_bitmap_into_rect(
+                ctx,
+                target_rect,
+                complication->bgbuffer,
+                rect_relative_origin(target_rect, complication->bgbuffer_origin).origin
+            );
+
             // also float upwards by framebuffer translation
-            dissolve_rect(ctx, rect_with_shadow(complication->rect), GColorClear, complication->bgbuffer);
             if ((complication->animation_counter % FLOAT_FRAMES_PER_PIXEL) == 0) {
                 #if !DEBUG_SHOW_COMPL_RECTS
                     complication->rect.size.h += 1;
@@ -247,19 +260,24 @@ static void complication_draw_animated(GContext* ctx, Complication* complication
     if (is_full_redraw){
         // snapshot the background for future redraws
         // TODO need to snapshot all before drawing any!!
+
+        // Since we refresh this every second, we only need movement within 1 second
+        // which is less than the lifetime movement of the final complication
+        // TODO refactor lifetime_rect to like "rect_over_time" or something
+        const GRect life_rect = lifetime_rect(complication->rect, NUM_COMPLICATIONS - 1);
+        complication->bgbuffer_origin = life_rect.origin;
+        #if DEBUG_SHOW_BGBUFFERS
+            graphics_draw_rect(ctx, grect_crop(life_rect, -1));
+        #endif // DEBUG_SHOW_BGBUFFERS
+
         GBitmap * const framebuffer = graphics_capture_frame_buffer(ctx);
-        const GRect life_rect = lifetime_rect(complication->rect, complication->index);
-        gbitmap_set_bounds(complication->bgbuffer, (GRect){{0, 0}, life_rect.size});
         bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit(
             complication->bgbuffer,  // dest
             framebuffer, // src
             gbitmap_get_bounds(complication->bgbuffer), // dest_rect
-            life_rect.origin  // src_origin_offset
+            complication->bgbuffer_origin  // src_origin_offset
         );
         graphics_release_frame_buffer(ctx, framebuffer);
-
-        // TODO These bounds are used for a different purpose than usual by dissolve_rect()
-        gbitmap_set_bounds(complication->bgbuffer, life_rect);
     }
 
     // Save the previous bounds for erasure, then undo any shake
@@ -282,11 +300,10 @@ static void complication_draw_animated(GContext* ctx, Complication* complication
     apply_complication_state_effects(ctx, complication, is_full_redraw, state_changed, &erase, &draw);
 
     if (erase) {
-        const GRect life_rect = gbitmap_get_bounds(complication->bgbuffer);
-        gbitmap_set_bounds(complication->bgbuffer,  // TODO refactor
-            (GRect){gpoint_sub(prev_rect.origin, life_rect.origin), prev_rect.size});
+        const GRect original_bounds = gbitmap_get_bounds(complication->bgbuffer);
+        gbitmap_set_bounds(complication->bgbuffer, rect_relative_origin(prev_rect, complication->bgbuffer_origin));
         graphics_draw_bitmap_in_rect(ctx, complication->bgbuffer, prev_rect);
-        gbitmap_set_bounds(complication->bgbuffer, life_rect);
+        gbitmap_set_bounds(complication->bgbuffer, original_bounds);
     }
 
     if (draw) {
@@ -791,8 +808,7 @@ void complications_init(void) {
     for (uint32_t i = 0; i < NUM_COMPLICATIONS; i++) {
         complications[i].index = i;
 
-        // TODO doesn't need to be lifetime; only needs 1/3 of total float
-        const GSize bgbuffer_size = lifetime_rect((GRect){{0, 0}, MAX_COMPLICATION_SIZE}, i).size;
+        const GSize bgbuffer_size = lifetime_rect((GRect){{0, 0}, MAX_COMPLICATION_SIZE}, NUM_COMPLICATIONS - 1).size;
         // TODO support other framebuffer types
         complications[i].bgbuffer = gbitmap_create_blank(bgbuffer_size, GBitmapFormat8Bit);
     }

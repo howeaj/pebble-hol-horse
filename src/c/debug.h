@@ -14,6 +14,7 @@
 #define FORCE_QUIET_TIME (DEBUG || 0)
 #define DEBUG_DRAW_FACE 0  // plot parts of the face with pebble graphics (normally baked in to face.png)
 #define DEBUG_SHOW_COMPL_RECTS 0  // draw the complication placement bounding boxes
+#define DEBUG_SHOW_BGBUFFERS 0  // draw the complication bgbuffer bounding boxes
 #define DEBUG_COMPL_VAL 0  // Fake complication value
 
 #if DEMO
