@@ -1,7 +1,10 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
 /* TODO
+    - fix broken positioning when "on activity" set at lower index than "always"
+    - prevent "always" from covering the battery meter
     - animation improvements
+        - snapshot bgbuffer before drawing animated comps, and after drawing static comps
         - don't dirty entire framebuffer
         - don't wakeup when nothing needs updates
     - complications avoid timeline peek
@@ -461,8 +464,15 @@ static void fast_time_handler(void* context) {
 
 static void new_config_handler(const Config* config) {
     handle_config(config);
-    activation_handler(NULL);
-    mark_root_window_dirty(true);
+
+    // The first activation must be done by init(), after the first call to tick_handler
+    static bool is_init = true;
+    if (is_init) {
+        is_init = false;
+    } else {
+        activation_handler(NULL);
+        mark_root_window_dirty(true);
+    }
 }
 
 static void main_window_load(Window *window) {
@@ -471,9 +481,9 @@ static void main_window_load(Window *window) {
     Layer* const root_layer = window_get_root_layer(window);
     layer_set_update_proc(root_layer, draw_root_layer);
     init_resources(root_layer);
+
     connection_service_subscribe((ConnectionHandlers){handle_connection, NULL});
     accel_tap_service_subscribe(accel_tap_handler);
-    app_timer_register(1, activation_handler, NULL);
 
     new_config_handler(config_get());
 }
@@ -496,6 +506,8 @@ static void init(void) {
     const time_t now = time(NULL);
     tick_handler(localtime(&now),
         SECOND_UNIT | MINUTE_UNIT | HOUR_UNIT | DAY_UNIT | MONTH_UNIT | YEAR_UNIT);
+
+    activation_handler(NULL);
 
 #if FAST_TIME_MS
     s_fake_time = time(NULL);
