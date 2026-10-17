@@ -559,41 +559,15 @@ static int32_t find_biggest_gap(void) {
     return MUL_FRACT(largest_gap_centre_index, TRIG_MAX_ANGLE, GAP_NUM_SEGMENTS);
 }
 
-// activate a complication, having initialised its value, size and origin
-static void complication_activate(uint32_t index) {
-    ASSERT(index < NUM_COMPLICATIONS);
-    Complication* const complication = &complications[index];
-    if (complication->mode == ComplicationMode_OnActivate) {
-
-#if DEBUG_SHOW_COMPL_RECTS
-        complication->rect.size.h += floatup_distance(index);
-        complication->rect.origin.y -= floatup_distance(index);
-#endif // DEBUG_SHOW_COMPL_RECTS
-
-        complication->state = ComplicationState_Appear;
-        complication->animation_counter = s_frames_per_state[complication->state];
-        complication->shake_offset = (GPoint) {0, 0};
-        if (s_animation_timer == NULL) {
-            complications_nextframe(NULL);
-        }
-    }
-}
-
-// Initialise or update the value, dimensions & initial position of a complication.
-static void complication_start(uint32_t index, bool avoid_second_hand) {
-    ASSERT(index < NUM_COMPLICATIONS);
-    Complication* const complication = &complications[index];
-
-    update_complication_display_value(complication);
-    update_complication_size(complication);
-
-    ///////// Choose starting location
+// Set the initial position of a complication
+static void update_complication_position(Complication* complication, bool avoid_second_hand) {
+    const uint32_t index = complication->index;
     const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
 
     // Calculate the total size of the complication over its whole lifetime
     // TODO "Always-on" comps don't float up
     const int16_t floatup_dist = floatup_distance(index);
-    const GSize total_size = lifetime_rect(complication->rect, complication->index).size;
+    const GSize total_size = lifetime_rect(complication->rect, index).size;
 
     // Start searching from the previous complication's angle
     // TODO starting from a fixed angle can waste some space; start from the hour hand? start from a random hand?
@@ -685,8 +659,6 @@ static void complication_start(uint32_t index, bool avoid_second_hand) {
         complication->arc = arc;
         complication->rect.origin = origin;
         complication->rect.origin.y += floatup_dist;
-
-        complication_activate(index);
         return;
     }
 
@@ -702,7 +674,30 @@ static void complication_start(uint32_t index, bool avoid_second_hand) {
         bitmap_centre.y - total_size.h / 2
     );
     complication->rect.origin.y += floatup_dist;
-    complication_activate(index);
+}
+
+// Initialise or update a complication, and start showing it
+static void complication_start(uint32_t index, bool avoid_second_hand) {
+    ASSERT(index < NUM_COMPLICATIONS);
+    Complication* const complication = &complications[index];
+
+    update_complication_display_value(complication);
+    update_complication_size(complication);
+    update_complication_position(complication, avoid_second_hand);
+
+    if (complication->mode == ComplicationMode_OnActivate) {
+#if DEBUG_SHOW_COMPL_RECTS
+        complication->rect.size.h += floatup_distance(index);
+        complication->rect.origin.y -= floatup_distance(index);
+#endif // DEBUG_SHOW_COMPL_RECTS
+
+        complication->state = ComplicationState_Appear;
+        complication->animation_counter = s_frames_per_state[complication->state];
+        complication->shake_offset = (GPoint) {0, 0};
+        if (s_animation_timer == NULL) {
+            complications_nextframe(NULL);
+        }
+    }
 }
 
 // Wrapper to call complication_start() from an AppTimer
