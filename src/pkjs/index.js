@@ -71,7 +71,7 @@ var clay = new Clay(clayConfig, function(minified) {
             setColor('hourColor',     0xffff00);
             setColor('minuteColor',   0xffff00);
             setColor('secondColor',   0xffff00);
-            setColor('compFgColors',  0xffff00);
+            setColor('compFgColors',  0xffff55);
             setColor('compBgColors',  0xaa55ff);
             setColor('status1Color',  0xaa0000);
             setColor('status2Color',  0x0000aa);

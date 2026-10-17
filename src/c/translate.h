@@ -13,4 +13,4 @@ typedef struct GVector {
 } GVector;
 #define GVector(dx, dy) ((GVector){(dx), (dy)})
 
-void translate_rect(GContext* ctx, GRect rect, GVector vector);
+void translate_rect(GContext* ctx, GRect rect, GVector vector, const GColor* colorMask, size_t colorMaskLen);

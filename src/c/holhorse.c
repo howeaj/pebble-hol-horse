@@ -3,7 +3,6 @@
 /* TODO
     - animation improvements
         - don't dirty entire framebuffer
-        - mask translate.c based on pixel colour (requires comps to have unique colours)
         - don't wakeup when nothing needs updates
     - complications avoid timeline peek
     - more colour themes
