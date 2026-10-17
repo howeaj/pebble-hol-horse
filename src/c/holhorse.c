@@ -2,13 +2,10 @@
 
 /* TODO
     - animation improvements
-        - redraw text&batterymeter during dissolve?
-            - maybe only if the hands aren't there?
-        - mask instead of bounding box
-            - how to get text mask??
-        - or if thats too hard, some bounding boxes can be smaller (e.g. month num)
-        - don't wakeup when nothing needs updates
         - don't dirty entire framebuffer
+        - mask translate.c based on pixel colour (requires comps to have unique colours)
+        - don't wakeup when nothing needs updates
+    - complications avoid timeline peek
     - more colour themes
     - -flto gcc opt
     - emery support

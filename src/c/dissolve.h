@@ -9,4 +9,4 @@
 
 size_t gbitmap_get_size(const GBitmap* bitmap);
 void dissolve_bitmap(GBitmap *bitmap);
-void dissolve_rect(GContext* ctx, GRect rect, GColor color);
+void dissolve_rect(GContext* ctx, GRect rect, GColor color, const GBitmap* background);
