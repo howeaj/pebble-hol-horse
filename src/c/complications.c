@@ -597,17 +597,20 @@ static void update_complication_position(Complication* complication, bool avoid_
     const uint32_t index = complication->index;
     const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
 
-    // Calculate the total size of the complication over its whole lifetime
-    // TODO "Always-on" comps don't float up
-    const int16_t floatup_dist = floatup_distance(index);
-    const GSize total_size = lifetime_rect(complication->rect, index).size;
+    // Initial placement depends on its lifetime boundaries
+    // For "always on" comps with no movement, still pretend it will float up a bit
+    // to give a similar amount of space around them
+    const bool is_on_activate = (complication->mode == ComplicationMode_OnActivate);
+    const uint32_t float_dist_index = is_on_activate ? index : (NUM_COMPLICATIONS - 1);
+    const int16_t floatup_dist = floatup_distance(float_dist_index);
+    const GSize total_size = lifetime_rect(complication->rect, float_dist_index).size;
 
     // Start searching from the previous complication's angle
     // TODO starting from a fixed angle can waste some space; start from the hour hand? start from a random hand?
     // WONTDO handle comp2 disabled but comp1 and comp3 enabled
     int32_t start_angle_deg = 0;
     if (config_get()->batteryMeterEnabled) {
-        start_angle_deg = 90;
+        start_angle_deg = is_on_activate ? 90 : 55;
     }
     if (index > 0) {
         const Complication* const other = &complications[index - 1];
