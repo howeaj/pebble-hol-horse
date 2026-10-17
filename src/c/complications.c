@@ -40,6 +40,7 @@ typedef enum ComplicationState {
 #define MAX_TEXT_SIZE (6)  // Maximum characters (incl. null terminator) in text fields
 
 typedef struct Complication {
+    uint32_t index;  // The index of this complication in `complications`
     ComplicationMode mode;
     ComplicationType type;
     GBitmap* bitmap;
@@ -112,8 +113,8 @@ static inline GRect rect_with_shadow(GRect rect) {
 }
 
 // Return the entire rect that a complication's bounds can cover for its entire life (incl. shadow, shake and float)
-static inline GRect lifetime_rect(GRect rect) {
-    const int16_t max_float = floatup_distance(0);
+static inline GRect lifetime_rect(GRect rect, uint32_t index) {
+    const int16_t max_float = floatup_distance(index);
     rect = rect_with_shadow(rect);
     return GRect(
         rect.origin.x - MAX_SHAKE,
@@ -247,7 +248,7 @@ static void complication_draw_animated(GContext* ctx, Complication* complication
         // snapshot the background for future redraws
         // TODO need to snapshot all before drawing any!!
         GBitmap * const framebuffer = graphics_capture_frame_buffer(ctx);
-        const GRect life_rect = lifetime_rect(complication->rect);
+        const GRect life_rect = lifetime_rect(complication->rect, complication->index);
         gbitmap_set_bounds(complication->bgbuffer, (GRect){{0, 0}, life_rect.size});
         bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit(
             complication->bgbuffer,  // dest
@@ -592,7 +593,7 @@ static void complication_start(uint32_t index, bool avoid_second_hand) {
     // Calculate the total size of the complication over its whole lifetime
     // TODO "Always-on" comps don't float up
     const int16_t floatup_dist = floatup_distance(index);
-    const GSize total_size = lifetime_rect(complication->rect).size;
+    const GSize total_size = lifetime_rect(complication->rect, complication->index).size;
 
     // Start searching from the previous complication's angle
     // TODO starting from a fixed angle can waste some space; start from the hour hand? start from a random hand?
@@ -792,9 +793,11 @@ void complications_init(void) {
     s_tick = gbitmap_create_with_resource(RESOURCE_ID_TICK);
     s_go = gbitmap_create_with_resource(RESOURCE_ID_GO);
 
-    // TODO doesn't need to be lifetime; only needs 1/3 of total float
-    const GSize bgbuffer_size = lifetime_rect((GRect){{0, 0}, MAX_COMPLICATION_SIZE}).size;
     for (uint32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+        complications[i].index = i;
+
+        // TODO doesn't need to be lifetime; only needs 1/3 of total float
+        const GSize bgbuffer_size = lifetime_rect((GRect){{0, 0}, MAX_COMPLICATION_SIZE}, i).size;
         // TODO support other framebuffer types
         complications[i].bgbuffer = gbitmap_create_blank(bgbuffer_size, GBitmapFormat8Bit);
     }
