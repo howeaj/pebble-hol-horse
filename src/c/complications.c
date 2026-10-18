@@ -488,12 +488,14 @@ static void update_complication_display_value(Complication* complication) {
     }
 }
 
-#define MAX_COMPLICATION_SIZE GSize(65, 35)
+#define MAX_COMPLICATION_SIZE GSize(68, 35)
 static void update_complication_size(Complication* complication) {
     switch (complication->type) {
         case ComplicationType_Timezone:
-        case ComplicationType_Sleep:
             complication->rect.size = (GSize){65, 25};  // TODO optimise
+            break;
+        case ComplicationType_Sleep:
+            complication->rect.size = (GSize){68, 25};
             break;
         case ComplicationType_Battery:
         case ComplicationType_DayNum:
@@ -503,7 +505,7 @@ static void update_complication_size(Complication* complication) {
             break;
         case ComplicationType_DayName:
         case ComplicationType_MonthName:
-            complication->rect.size = (GSize){53, 22};
+            complication->rect.size = (GSize){56, 22};
             break;
         case ComplicationType_Tick:
         case ComplicationType_Menacing:
