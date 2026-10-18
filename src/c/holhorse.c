@@ -4,7 +4,6 @@
     - fix broken positioning when "on activity" set at lower index than "always"
     - prevent "always" from covering the battery meter
     - animation improvements
-        - snapshot bgbuffer before drawing animated comps, and after drawing static comps
         - don't dirty entire framebuffer
         - don't wakeup when nothing needs updates
     - complications avoid timeline peek

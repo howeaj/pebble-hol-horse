@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- Fix graphical artifacts when complications overlap each-other
+
 ## 1.0.1
 
 - Fix graphical artifacts when complication animations overlap background elements

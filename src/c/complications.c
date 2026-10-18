@@ -140,6 +140,28 @@ static inline GRect rect_bottom_rows(GRect rect, uint32_t rows) {
     );
 }
 
+// Save the current content of the framebuffer (prior to drawing the complication)
+// into a complication's bgbuffer for future use by `complication_erase_rect`
+static void complication_snapshot_rect(GContext* ctx, Complication* complication) {
+    // Since we refresh this every second, we only need movement within 1 second
+    // which is less than the lifetime movement of the final complication
+    // TODO refactor lifetime_rect to like "rect_over_time" or something
+    const GRect life_rect = lifetime_rect(complication->rect, NUM_COMPLICATIONS - 1);
+    complication->bgbuffer_origin = life_rect.origin;
+    #if DEBUG_SHOW_BGBUFFERS
+        graphics_draw_rect(ctx, grect_crop(life_rect, -1));
+    #endif // DEBUG_SHOW_BGBUFFERS
+
+    GBitmap * const framebuffer = graphics_capture_frame_buffer(ctx);
+    bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit(
+        complication->bgbuffer,  // dest
+        framebuffer, // src
+        gbitmap_get_bounds(complication->bgbuffer), // dest_rect
+        complication->bgbuffer_origin  // src_origin_offset
+    );
+    graphics_release_frame_buffer(ctx, framebuffer);
+}
+
 // Erase any complication pixels from `rect` by copying pixels from its bgbuffer
 static void complication_erase_rect(GContext* ctx, Complication* complication, GRect rect) {
     const GRect original_bounds = gbitmap_get_bounds(complication->bgbuffer);
@@ -275,30 +297,6 @@ static void draw_complication(GContext* ctx, const Complication* complication) {
 }
 
 static void complication_draw_animated(GContext* ctx, Complication* complication, bool is_full_redraw) {
-    // TODO maybe if (complication->animation_counter == s_frames_per_state[complication->state]){
-    if (is_full_redraw){
-        // snapshot the background for future redraws
-        // TODO need to snapshot all before drawing any!!
-
-        // Since we refresh this every second, we only need movement within 1 second
-        // which is less than the lifetime movement of the final complication
-        // TODO refactor lifetime_rect to like "rect_over_time" or something
-        const GRect life_rect = lifetime_rect(complication->rect, NUM_COMPLICATIONS - 1);
-        complication->bgbuffer_origin = life_rect.origin;
-        #if DEBUG_SHOW_BGBUFFERS
-            graphics_draw_rect(ctx, grect_crop(life_rect, -1));
-        #endif // DEBUG_SHOW_BGBUFFERS
-
-        GBitmap * const framebuffer = graphics_capture_frame_buffer(ctx);
-        bitblt_bitmap_into_bitmap_tiled_8bit_to_8bit(
-            complication->bgbuffer,  // dest
-            framebuffer, // src
-            gbitmap_get_bounds(complication->bgbuffer), // dest_rect
-            complication->bgbuffer_origin  // src_origin_offset
-        );
-        graphics_release_frame_buffer(ctx, framebuffer);
-    }
-
     // Save the previous bounds for erasure, then undo any shake
     const GRect prev_rect = rect_with_shadow(complication->rect);
     complication->rect.origin.x -= complication->shake_offset.x;
@@ -327,32 +325,60 @@ static void complication_draw_animated(GContext* ctx, Complication* complication
     }
 }
 
-void complications_draw(Layer* layer, GContext* ctx, bool is_full_redraw) {
-    UNUSED(layer);
+// Draw all static ("Always show") complications
+static void complications_draw_static(GContext* ctx) {
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        Complication* const complication = &s_complications[i];
-        if ((complication->mode == ComplicationMode_OnAlways) && is_full_redraw) {
+        const Complication* const complication = &s_complications[i];
+        if (complication->mode == ComplicationMode_OnAlways) {
             draw_complication(ctx, complication);
-        } else if ((complication->mode == ComplicationMode_OnActivate)
-                && (complication->state != ComplicationState_Off))
-        {
-            if ((config_get()->animationSpeed == AnimationSpeed_Off) && is_full_redraw) {
-                draw_complication(ctx, complication);
-            } else {
-                complication_draw_animated(ctx, complication, is_full_redraw);
-            }
         }
     }
 }
 
-static int8_t num_animating_complications(void) {
-    int8_t count = 0;
-    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        if ((s_complications[i].state != ComplicationState_Off)
-                && (s_complications[i].mode == ComplicationMode_OnActivate)
-                && (config_get()->animationSpeed != AnimationSpeed_Off))
-        {
-            count++;
+#define FOREACH_ACTIVATED_COMPLICATION \
+    for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) { \
+        Complication* const complication = &s_complications[i]; \
+        if ((complication->mode == ComplicationMode_OnActivate) \
+            && (complication->state != ComplicationState_Off))
+#define END_FOREACH_ACTIVATED_COMPLICATION }
+
+// Snapshot the bgbuffer for all active "on activity" complications
+static void complications_snapshot_activated(GContext* ctx) {
+    FOREACH_ACTIVATED_COMPLICATION {
+        complication_snapshot_rect(ctx, complication);
+    } END_FOREACH_ACTIVATED_COMPLICATION
+}
+
+// Draw all active "on activity" complications
+static void complications_draw_activated(GContext* ctx, bool is_full_redraw) {
+    FOREACH_ACTIVATED_COMPLICATION {
+        if ((config_get()->animationSpeed == AnimationSpeed_Off) && is_full_redraw) {  // TODO hmmmm
+            draw_complication(ctx, complication);
+        } else {
+            complication_draw_animated(ctx, complication, is_full_redraw);
+        }
+    } END_FOREACH_ACTIVATED_COMPLICATION
+}
+
+void complications_draw(Layer* layer, GContext* ctx, bool is_full_redraw) {
+    UNUSED(layer);
+    if (is_full_redraw){
+        complications_draw_static(ctx);
+        complications_snapshot_activated(ctx);
+    }
+    complications_draw_activated(ctx, is_full_redraw);
+}
+
+// How many complications are currently animating
+static int32_t num_animating_complications(void) {
+    int32_t count = 0;
+    if (config_get()->animationSpeed != AnimationSpeed_Off) {
+        for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
+            if ((s_complications[i].state != ComplicationState_Off)
+                && (s_complications[i].mode == ComplicationMode_OnActivate))
+            {
+                count++;
+            }
         }
     }
     return count;
