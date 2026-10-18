@@ -76,7 +76,7 @@ static GFont s_font;
 static AppTimer* s_animation_timer = NULL;
 static GBitmap* s_tick;
 static GBitmap* s_go;
-static Complication complications[NUM_COMPLICATIONS];
+static Complication s_complications[NUM_COMPLICATIONS];
 
 static const uint32_t s_frames_per_state[ComplicationState_MAX] = {
     0,              // ComplicationState_Off
@@ -330,7 +330,7 @@ static void complication_draw_animated(GContext* ctx, Complication* complication
 void complications_draw(Layer* layer, GContext* ctx, bool is_full_redraw) {
     UNUSED(layer);
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        Complication* const complication = &complications[i];
+        Complication* const complication = &s_complications[i];
         if ((complication->mode == ComplicationMode_OnAlways) && is_full_redraw) {
             draw_complication(ctx, complication);
         } else if ((complication->mode == ComplicationMode_OnActivate)
@@ -348,8 +348,8 @@ void complications_draw(Layer* layer, GContext* ctx, bool is_full_redraw) {
 static int8_t num_animating_complications(void) {
     int8_t count = 0;
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        if ((complications[i].state != ComplicationState_Off)
-                && (complications[i].mode == ComplicationMode_OnActivate)
+        if ((s_complications[i].state != ComplicationState_Off)
+                && (s_complications[i].mode == ComplicationMode_OnActivate)
                 && (config_get()->animationSpeed != AnimationSpeed_Off))
         {
             count++;
@@ -533,8 +533,8 @@ static void populate_gap_array(bool is_segment_full[GAP_NUM_SEGMENTS]) {
     full_angles[0] = hand_angles.sec - SEC_TO_TRIGANGLE(1);  // assume this is the third tick
     full_angles[1] = hand_angles.min;
     full_angles[2] = hand_angles.hour;
-    full_angles[3] = complications[0].angle;
-    full_angles[4] = complications[1].angle;
+    full_angles[3] = s_complications[0].angle;
+    full_angles[4] = s_complications[1].angle;
 
     // how many segments each object extends either side of its centre (approximate)
     // (must match the order assigned to full_angles above)
@@ -615,7 +615,7 @@ static void update_complication_position(Complication* complication, bool avoid_
         start_angle_deg = is_on_activate ? 90 : 55;
     }
     if (index > 0) {
-        const Complication* const other = &complications[index - 1];
+        const Complication* const other = &s_complications[index - 1];
         if (other->mode != ComplicationMode_Off) {
             start_angle_deg = TRIGANGLE_TO_DEG(other->angle + MIN_TO_TRIGANGLE(4)) % 360;
         }
@@ -678,7 +678,7 @@ static void update_complication_position(Complication* complication, bool avoid_
         bool overlaps_other_complication = false;
         // TODO get closer by taking into account the floating movement
         for (uint32_t i = 0; i < index; i++) {
-            const Complication* const other = &complications[i];
+            const Complication* const other = &s_complications[i];
             if (other->mode != ComplicationMode_Off) {
                 if (ABSDIFF_WRAP(arc_centre_angle, other->angle, TRIG_MAX_ANGLE)
                         < (((other->arc + arc) / 2) - DEG_TO_TRIGANGLE(15)))
@@ -717,7 +717,7 @@ static void update_complication_position(Complication* complication, bool avoid_
 // Initialise or update a complication, and start showing it
 static void complication_start(uint32_t index, bool avoid_second_hand) {
     ASSERT(index < NUM_COMPLICATIONS);
-    Complication* const complication = &complications[index];
+    Complication* const complication = &s_complications[index];
 
     update_complication_display_value(complication);
     update_complication_size(complication);
@@ -750,7 +750,7 @@ void complication_start_next(void) {
     uint32_t fastAnimDelayMs = 0;
 
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        Complication* const complication = &complications[i];
+        Complication* const complication = &s_complications[i];
         if ((complication->mode == ComplicationMode_OnActivate) && (complication->state == ComplicationState_Off)) {
             if (fastAnimDelayMs == 0) {
                 complication_start(i, true);
@@ -768,7 +768,7 @@ void complication_start_next(void) {
 // Update any always-on complications; intended to be called on each minute tick
 void complications_update(void) {
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        Complication* const complication = &complications[i];
+        Complication* const complication = &s_complications[i];
         if (complication->mode == ComplicationMode_OnAlways) {
             complication_start(i, false);
         }
@@ -779,44 +779,44 @@ void complications_stop(void) {
     // assumes all complications are already on
     if (config_get()->animationSpeed == AnimationSpeed_Off) {
         for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-            complications[i].state = ComplicationState_Off;
+            s_complications[i].state = ComplicationState_Off;
         }
     } else {
         uint32_t delay = 0;
         for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-            complications[i].animation_counter = delay;
+            s_complications[i].animation_counter = delay;
             delay += FRAMERATE / 10;
         }
         // the last complication is still in State_Appear
-        complications[NUM_COMPLICATIONS - 1].state = ComplicationState_On;
-        complications[NUM_COMPLICATIONS - 1].shake_offset = (GPoint) {0, 0};
+        s_complications[NUM_COMPLICATIONS - 1].state = ComplicationState_On;
+        s_complications[NUM_COMPLICATIONS - 1].shake_offset = (GPoint) {0, 0};
     }
 }
 
 void complications_configure(const Config* config){
-    complications[0].mode = config->comp1Mode;
-    complications[1].mode = config->comp2Mode;
-    complications[2].mode = config->comp3Mode;
-    complications[0].type = config->comp1Type;
-    complications[1].type = config->comp2Type;
-    complications[2].type = config->comp3Type;
-    complications[0].color1 = config->comp1FgColor;
-    complications[1].color1 = config->comp2FgColor;
-    complications[2].color1 = config->comp3FgColor;
-    complications[0].color2 = config->comp1BgColor;
-    complications[1].color2 = config->comp2BgColor;
-    complications[2].color2 = config->comp3BgColor;
-    complications[0].value = config->comp1Value;
-    complications[1].value = config->comp2Value;
-    complications[2].value = config->comp3Value;
+    s_complications[0].mode = config->comp1Mode;
+    s_complications[1].mode = config->comp2Mode;
+    s_complications[2].mode = config->comp3Mode;
+    s_complications[0].type = config->comp1Type;
+    s_complications[1].type = config->comp2Type;
+    s_complications[2].type = config->comp3Type;
+    s_complications[0].color1 = config->comp1FgColor;
+    s_complications[1].color1 = config->comp2FgColor;
+    s_complications[2].color1 = config->comp3FgColor;
+    s_complications[0].color2 = config->comp1BgColor;
+    s_complications[1].color2 = config->comp2BgColor;
+    s_complications[2].color2 = config->comp3BgColor;
+    s_complications[0].value = config->comp1Value;
+    s_complications[1].value = config->comp2Value;
+    s_complications[2].value = config->comp3Value;
 
     STATIC_ASSERT(TZ_TEXT_SIZE <= MAX_TEXT_SIZE);
-    strscpy(&complications[0].text[2], config->comp1TimezoneText, TZ_TEXT_SIZE);
-    strscpy(&complications[1].text[2], config->comp2TimezoneText, TZ_TEXT_SIZE);
-    strscpy(&complications[2].text[2], config->comp3TimezoneText, TZ_TEXT_SIZE);
-    string_to_lower(&complications[0].text[2], TZ_TEXT_SIZE);
-    string_to_lower(&complications[1].text[2], TZ_TEXT_SIZE);
-    string_to_lower(&complications[2].text[2], TZ_TEXT_SIZE);
+    strscpy(&s_complications[0].text[2], config->comp1TimezoneText, TZ_TEXT_SIZE);
+    strscpy(&s_complications[1].text[2], config->comp2TimezoneText, TZ_TEXT_SIZE);
+    strscpy(&s_complications[2].text[2], config->comp3TimezoneText, TZ_TEXT_SIZE);
+    string_to_lower(&s_complications[0].text[2], TZ_TEXT_SIZE);
+    string_to_lower(&s_complications[1].text[2], TZ_TEXT_SIZE);
+    string_to_lower(&s_complications[2].text[2], TZ_TEXT_SIZE);
 
     complications_update();
 }
@@ -827,11 +827,11 @@ void complications_init(void) {
     s_go = gbitmap_create_with_resource(RESOURCE_ID_GO);
 
     for (uint32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        complications[i].index = i;
+        s_complications[i].index = i;
 
         const GSize bgbuffer_size = lifetime_rect((GRect){{0, 0}, MAX_COMPLICATION_SIZE}, NUM_COMPLICATIONS - 1).size;
         // TODO support other framebuffer types
-        complications[i].bgbuffer = gbitmap_create_blank(bgbuffer_size, GBitmapFormat8Bit);
+        s_complications[i].bgbuffer = gbitmap_create_blank(bgbuffer_size, GBitmapFormat8Bit);
     }
 }
 
@@ -841,6 +841,6 @@ void complications_destroy(void) {
     gbitmap_destroy(s_go);
 
     for (uint32_t i = 0; i < NUM_COMPLICATIONS; i++) {
-        gbitmap_destroy(complications[i].bgbuffer);
+        gbitmap_destroy(s_complications[i].bgbuffer);
     }
 }
