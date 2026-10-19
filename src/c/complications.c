@@ -780,6 +780,7 @@ static void update_complication_position(Complication* complication, bool avoid_
 static void complication_start(uint32_t index, bool avoid_second_hand) {
     ASSERT(index < NUM_COMPLICATIONS);
     Complication* const complication = &s_complications[index];
+    ASSERT((complication->mode != ComplicationMode_OnActivate) || (complication->state == ComplicationState_Off));
 
     update_complication_display_value(complication);
     update_complication_size(complication);
@@ -816,12 +817,14 @@ void complication_start_next(void) {
         if ((complication->mode == ComplicationMode_OnActivate) && (complication->state == ComplicationState_Off)) {
             if (fastAnimDelayMs == 0) {
                 complication_start(i, true);
+            } else {
+                app_timer_register(fastAnimDelayMs, complication_start_callback, (void*)i);
             }
+
             if (anim_speed == AnimationSpeed_Normal) {
                 break;
             } else if (anim_speed == AnimationSpeed_Fast) {
                 fastAnimDelayMs += 100;
-                app_timer_register(fastAnimDelayMs, complication_start_callback, (void*)i);
             }
         }
     }
