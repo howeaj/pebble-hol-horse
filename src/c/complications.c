@@ -843,8 +843,6 @@ void complications_configure(const Config* config){
     string_to_lower(&s_complications[0].text[2], TZ_TEXT_SIZE);
     string_to_lower(&s_complications[1].text[2], TZ_TEXT_SIZE);
     string_to_lower(&s_complications[2].text[2], TZ_TEXT_SIZE);
-
-    complications_update();
 }
 
 void complications_init(void) {

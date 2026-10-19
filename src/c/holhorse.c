@@ -464,14 +464,12 @@ static void fast_time_handler(void* context) {
 static void new_config_handler(const Config* config) {
     handle_config(config);
 
-    // The first activation must be done by init(), after the first call to tick_handler
-    static bool is_init = true;
-    if (is_init) {
-        is_init = false;
-    } else {
-        activation_handler(NULL);
-        mark_root_window_dirty(true);
-    }
+    const time_t now = time(NULL);
+    tick_handler(localtime(&now),
+        SECOND_UNIT | MINUTE_UNIT | HOUR_UNIT | DAY_UNIT | MONTH_UNIT | YEAR_UNIT);
+
+    activation_handler(NULL);
+    mark_root_window_dirty(true);
 }
 
 static void main_window_load(Window *window) {
@@ -501,12 +499,6 @@ static void init(void) {
         .unload = main_window_unload
     });
     window_stack_push(s_main_window, true);
-
-    const time_t now = time(NULL);
-    tick_handler(localtime(&now),
-        SECOND_UNIT | MINUTE_UNIT | HOUR_UNIT | DAY_UNIT | MONTH_UNIT | YEAR_UNIT);
-
-    activation_handler(NULL);
 
 #if FAST_TIME_MS
     s_fake_time = time(NULL);
