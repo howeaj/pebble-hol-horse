@@ -78,7 +78,7 @@ static GBitmap* s_tick;
 static GBitmap* s_go;
 static Complication s_complications[NUM_COMPLICATIONS];
 
-static const uint32_t s_frames_per_state[ComplicationState_MAX] = {
+static const int32_t s_frames_per_state[ComplicationState_MAX] = {
     0,              // ComplicationState_Off
     FRAMERATE / 4,  // ComplicationState_Appear
     MUL_FRACT(FRAMERATE, 11, 4),  // ComplicationState_On
@@ -343,9 +343,15 @@ static void complications_draw_static(GContext* ctx) {
 #define END_FOREACH_ACTIVATED_COMPLICATION }
 
 // Snapshot the bgbuffer for all active "on activity" complications
-static void complications_snapshot_activated(GContext* ctx) {
+static void complications_snapshot_activated(GContext* ctx, bool is_full_redraw) {
     FOREACH_ACTIVATED_COMPLICATION {
-        complication_snapshot_rect(ctx, complication);
+
+        // First apparition not on a full redraw frame, such as for comps 2 & 3 in AnimationSpeed_Fast
+        if (is_full_redraw || ((complication->state == ComplicationState_Appear)
+                               && (complication->animation_counter == s_frames_per_state[complication->state]))){
+            LOG("non-full-redraw snapshot");
+            complication_snapshot_rect(ctx, complication);
+        }
     } END_FOREACH_ACTIVATED_COMPLICATION
 }
 
@@ -364,8 +370,8 @@ void complications_draw(Layer* layer, GContext* ctx, bool is_full_redraw) {
     UNUSED(layer);
     if (is_full_redraw){
         complications_draw_static(ctx);
-        complications_snapshot_activated(ctx);
     }
+    complications_snapshot_activated(ctx, is_full_redraw);
     complications_draw_activated(ctx, is_full_redraw);
 }
 

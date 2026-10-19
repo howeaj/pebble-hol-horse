@@ -2,9 +2,10 @@
 
 ## 1.0.2
 
-- Fix graphical artifacts when complications overlap each-other
+- Fix "Fast" animation speed graphical glitches and crash
 - Fix unstable placement of "always on" complications for certain configs
 - Fix rare two complications in same location
+- Reduce graphical artifacts when complications overlap each-other
 
 ## 1.0.1
 
