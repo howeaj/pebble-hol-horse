@@ -3,6 +3,7 @@
 ## 1.0.2
 
 - Fix graphical artifacts when complications overlap each-other
+- Fix unstable placement of "always on" complications for certain configs
 
 ## 1.0.1
 

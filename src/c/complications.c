@@ -546,21 +546,65 @@ static void update_complication_size(Complication* complication) {
     ASSERT(complication->rect.size.h <= MAX_COMPLICATION_SIZE.h);
 }
 
+static bool is_other_drawn_before_complication(const Complication* complication, const Complication* other) {
+    return (
+        (
+            (complication->mode == ComplicationMode_OnActivate) && (
+                (other->mode == ComplicationMode_OnAlways)
+                || ((other->mode == ComplicationMode_OnActivate) && (other->index < complication->index))
+            )
+        ) || (
+            (complication->mode == ComplicationMode_OnAlways) && (
+                (other->mode == ComplicationMode_OnAlways) && (other->index < complication->index)
+            )
+        )
+    );
+}
+
+// Find the `other` complication that would be initialised and drawn before `complication`.
+// Or NULL if this is the first one.
+// Comps are drawn from 0 to MAX_COMPLICATIONS,
+// except all "OnAlways" comps are drawn before "OnActivate" Comps
+static const Complication* get_previously_drawn_complication(const Complication* complication) {
+    for (int32_t i = (NUM_COMPLICATIONS - 1); i >= 0; i--) {
+        const Complication* const other = &s_complications[i];
+        if (is_other_drawn_before_complication(complication, other)) {
+            return other;
+        }
+    }
+    return NULL;
+}
+
 // how many segments to divide the clockface into for fallback gap detection
 #define GAP_NUM_SEGMENTS (60)
 
 // Populate fallback gap array with the current segments containing hands or complications
 // WONTDO Ignore deactivated complications
 static void populate_gap_array(bool is_segment_full[GAP_NUM_SEGMENTS]) {
-    // This function assumes the first two complications have been placed
+    // This function assumes the first two complications have already been placed
+    // because there is always enough space for two
     int32_t full_angles[5];
+
+    // Find the last complication to be drawn, which must be the one needing placement here.
+    const Complication* final_comp = &s_complications[NUM_COMPLICATIONS - 1];
+    for (int32_t i = (NUM_COMPLICATIONS - 1); i >= 0; i--){
+        const Complication* complication = &s_complications[i];
+        if (complication->mode == ComplicationMode_OnActivate) {
+            final_comp = complication;
+            break;
+        }
+    }
+    const Complication* prev_comp = get_previously_drawn_complication(final_comp);
+    ASSERT(prev_comp != NULL);
+    const Complication* prev_prev_comp = get_previously_drawn_complication(prev_comp);
+    ASSERT(prev_prev_comp != NULL);
 
     const HandAngles hand_angles = analogue_get_angles();
     full_angles[0] = hand_angles.sec - SEC_TO_TRIGANGLE(1);  // assume this is the third tick
     full_angles[1] = hand_angles.min;
     full_angles[2] = hand_angles.hour;
-    full_angles[3] = s_complications[0].angle;
-    full_angles[4] = s_complications[1].angle;
+    full_angles[3] = prev_comp->angle;
+    full_angles[4] = prev_prev_comp->angle;
 
     // how many segments each object extends either side of its centre (approximate)
     // (must match the order assigned to full_angles above)
@@ -637,14 +681,13 @@ static void update_complication_position(Complication* complication, bool avoid_
     // TODO starting from a fixed angle can waste some space; start from the hour hand? start from a random hand?
     // WONTDO handle comp2 disabled but comp1 and comp3 enabled
     int32_t start_angle_deg = 0;
-    if (config_get()->batteryMeterEnabled) {
-        start_angle_deg = is_on_activate ? 90 : 55;
-    }
-    if (index > 0) {
-        const Complication* const other = &s_complications[index - 1];
-        if (other->mode != ComplicationMode_Off) {
-            start_angle_deg = TRIGANGLE_TO_DEG(other->angle + MIN_TO_TRIGANGLE(4)) % 360;
+    const Complication* const previous_comp = get_previously_drawn_complication(complication);
+    if (previous_comp == NULL) {
+        if (config_get()->batteryMeterEnabled) {
+            start_angle_deg = is_on_activate ? 90 : 55;
         }
+    } else {
+        start_angle_deg = TRIGANGLE_TO_DEG(previous_comp->angle + MIN_TO_TRIGANGLE(4)) % 360;
     }
 
     // Search for an angle with enough space to fit the complication for its whole life (total_size)
@@ -703,9 +746,9 @@ static void update_complication_position(Complication* complication, bool avoid_
         // Check for collision with other complications
         bool overlaps_other_complication = false;
         // TODO get closer by taking into account the floating movement
-        for (uint32_t i = 0; i < index; i++) {
+        for (uint32_t i = 0; i < NUM_COMPLICATIONS; i++) {
             const Complication* const other = &s_complications[i];
-            if (other->mode != ComplicationMode_Off) {
+            if (is_other_drawn_before_complication(complication, other)) {
                 if (ABSDIFF_WRAP(arc_centre_angle, other->angle, TRIG_MAX_ANGLE)
                         < (((other->arc + arc) / 2) - DEG_TO_TRIGANGLE(15)))
                 {
