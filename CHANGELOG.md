@@ -4,6 +4,7 @@
 
 - Fix graphical artifacts when complications overlap each-other
 - Fix unstable placement of "always on" complications for certain configs
+- Fix rare two complications in same location
 
 ## 1.0.1
 

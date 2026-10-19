@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
 /* TODO
-    - fix broken positioning when "on activity" set at lower index than "always"
+    - fix broken fast animations
     - prevent "always" from covering the battery meter
     - animation improvements
         - don't dirty entire framebuffer

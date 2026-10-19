@@ -579,32 +579,19 @@ static const Complication* get_previously_drawn_complication(const Complication*
 #define GAP_NUM_SEGMENTS (60)
 
 // Populate fallback gap array with the current segments containing hands or complications
-// WONTDO Ignore deactivated complications
-static void populate_gap_array(bool is_segment_full[GAP_NUM_SEGMENTS]) {
-    // This function assumes the first two complications have already been placed
-    // because there is always enough space for two
+static void populate_gap_array(const Complication* complication, bool is_segment_full[GAP_NUM_SEGMENTS]) {
     int32_t full_angles[5];
 
-    // Find the last complication to be drawn, which must be the one needing placement here.
-    const Complication* final_comp = &s_complications[NUM_COMPLICATIONS - 1];
-    for (int32_t i = (NUM_COMPLICATIONS - 1); i >= 0; i--){
-        const Complication* complication = &s_complications[i];
-        if (complication->mode == ComplicationMode_OnActivate) {
-            final_comp = complication;
-            break;
-        }
-    }
-    const Complication* prev_comp = get_previously_drawn_complication(final_comp);
-    ASSERT(prev_comp != NULL);
-    const Complication* prev_prev_comp = get_previously_drawn_complication(prev_comp);
-    ASSERT(prev_prev_comp != NULL);
+    // Find any already drawn complications
+    const Complication* prev_comp = get_previously_drawn_complication(complication);
+    const Complication* prev_prev_comp = prev_comp ? get_previously_drawn_complication(prev_comp) : NULL;
 
     const HandAngles hand_angles = analogue_get_angles();
     full_angles[0] = hand_angles.sec - SEC_TO_TRIGANGLE(1);  // assume this is the third tick
     full_angles[1] = hand_angles.min;
     full_angles[2] = hand_angles.hour;
-    full_angles[3] = prev_comp->angle;
-    full_angles[4] = prev_prev_comp->angle;
+    full_angles[3] = prev_comp ? prev_comp->angle : hand_angles.hour;
+    full_angles[4] = prev_prev_comp ? prev_prev_comp->angle : hand_angles.hour;
 
     // how many segments each object extends either side of its centre (approximate)
     // (must match the order assigned to full_angles above)
@@ -626,9 +613,9 @@ static void populate_gap_array(bool is_segment_full[GAP_NUM_SEGMENTS]) {
 
 /// Fallback algorithm to place a complication when we've failed to calculate a
 /// position that definitely won't overlap
-static int32_t find_biggest_gap(void) {
+static int32_t find_biggest_gap(const Complication* complication) {
     bool is_segment_full[GAP_NUM_SEGMENTS] = {false};
-    populate_gap_array(is_segment_full);
+    populate_gap_array(complication, is_segment_full);
 
     // find the beginning of a gap to start from
     int32_t start = 0;
@@ -773,7 +760,7 @@ static void update_complication_position(Complication* complication, bool avoid_
     LOG_ERR("Failed to place complication #%u", index);
 
     // Fallback; just put it in the biggest gap.
-    complication->angle = find_biggest_gap();
+    complication->angle = find_biggest_gap(complication);
     complication->arc = 0; // don't bother setting it correctly; only used for the previous angle selection algorithm
     const GPoint bitmap_centre = point_from_angle(display_centre, complication->angle, COMPLICATION_RADIUS);
     complication->rect.origin = GPoint(
