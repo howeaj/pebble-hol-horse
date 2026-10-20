@@ -572,13 +572,30 @@ static bool is_other_drawn_before_complication(const Complication* complication,
 // Comps are drawn from 0 to MAX_COMPLICATIONS,
 // except all "OnAlways" comps are drawn before "OnActivate" Comps
 static const Complication* get_previously_drawn_complication(const Complication* complication) {
+    const Complication* previous = NULL;
+
     for (int32_t i = (NUM_COMPLICATIONS - 1); i >= 0; i--) {
         const Complication* const other = &s_complications[i];
         if (is_other_drawn_before_complication(complication, other)) {
-            return other;
+            previous = other;
+            break;
         }
     }
-    return NULL;
+    // TODO implement less hardcodedly
+    if ((previous != NULL) && (previous->index > complication->index)) {
+        ASSERT(complication->mode == ComplicationMode_OnActivate);
+        ASSERT(previous->mode == ComplicationMode_OnAlways);
+        ASSERT(complication->index <= 1);
+        ASSERT(NUM_COMPLICATIONS == 3);
+        if (complication->index == 1) {
+            if (s_complications[0].mode == ComplicationMode_OnActivate) {
+                // config is [Activate, Activate, Always] and the order is [2, 0, 1]
+                previous = &s_complications[0];
+            }
+        }
+    }
+
+    return previous;
 }
 
 // how many segments to divide the clockface into for fallback gap detection
@@ -593,23 +610,27 @@ static void populate_gap_array(const Complication* complication, bool is_segment
     const Complication* prev_prev_comp = prev_comp ? get_previously_drawn_complication(prev_comp) : NULL;
 
     const HandAngles hand_angles = analogue_get_angles();
-    full_angles[0] = hand_angles.sec - SEC_TO_TRIGANGLE(1);  // assume this is the third tick
+    full_angles[0] = hand_angles.sec;
     full_angles[1] = hand_angles.min;
     full_angles[2] = hand_angles.hour;
-    full_angles[3] = prev_comp ? prev_comp->angle : hand_angles.hour;
-    full_angles[4] = prev_prev_comp ? prev_prev_comp->angle : hand_angles.hour;
+    full_angles[3] = prev_comp ? prev_comp->angle : 0;
+    full_angles[4] = prev_prev_comp ? prev_prev_comp->angle : 0;
+
+    const int32_t num_full_angles = prev_comp ? (prev_prev_comp ? 5 : 4) : 3;
+
+    LOG("num_full_angles = %d", num_full_angles);
 
     // how many segments each object extends either side of its centre (approximate)
     // (must match the order assigned to full_angles above)
     const int32_t half_arc[5] = {
-        1, // second hand
+        0, // second hand
         1, // minute hand
         1, // hour hand
         3, // complication
         3, // complication
     };
 
-    for (uint32_t i = 0; i < ARRAY_LEN(full_angles); i++) {
+    for (int32_t i = 0; i < num_full_angles; i++) {
         const int32_t segment = MUL_FRACT(full_angles[i], GAP_NUM_SEGMENTS, TRIG_MAX_ANGLE);
         is_segment_full[segment] = true;
         is_segment_full[(segment + half_arc[i]) % GAP_NUM_SEGMENTS] = true;
