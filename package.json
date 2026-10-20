@@ -1,7 +1,7 @@
 {
   "name": "Hol Horse",
   "author": "howeaj",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {

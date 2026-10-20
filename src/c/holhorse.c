@@ -1,7 +1,6 @@
 // Copyright (c) 2026 Andrew Howe. All rights reserved. See LICENSE (GPLv3.0).
 
 /* TODO
-    - prevent "always" from covering the battery meter
     - animation improvements
         - don't dirty entire framebuffer
         - don't wakeup when nothing needs updates
