@@ -47,6 +47,10 @@
       { "type": "color", "messageKey": "status2Color", "group": "quietStatusEnabledToggleGroup",
         "label": "Quiet time colour", "defaultValue": "0000aa" },
 
+      { "type": "toggle", "messageKey": "alarmIndicatorEnabled", "label": "Alarm indicator", "defaultValue": true },
+      { "type": "color", "messageKey": "alarmColor", "group": "alarmIndicatorEnabledToggleGroup",
+        "label": "Alarm indicator colour", "defaultValue": "aa0000" },
+
       { "type": "toggle", "messageKey": "batteryMeterEnabled", "label": "Battery meter", "defaultValue": false },
       { "type": "input", "messageKey": "faceText", "group": "batteryMeterEnabledToggleGroup",
         "label": "Brand text", "defaultValue": "pebble",

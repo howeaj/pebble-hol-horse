@@ -62,6 +62,8 @@
     MACRO(COLOR, GColor,,                batteryLowColor,     GColorRed) \
     MACRO(COLOR, GColor,,                faceTextColor,       GColorLightGray) \
     MACRO(STR,   char, [FACE_TEXT_SIZE], faceText,            "pebble") \
+    MACRO(BOOL,  bool,,                  alarmIndicatorEnabled, true) \
+    MACRO(COLOR, GColor,,                alarmColor,          GColorDarkCandyAppleRed) \
 /* end of X_CONFIG_OPTIONS */
 
 

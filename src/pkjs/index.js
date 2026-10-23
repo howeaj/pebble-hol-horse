@@ -15,6 +15,7 @@ var clay = new Clay(clayConfig, function(minified) {
         var themeSelector = this;
         const theme = themeSelector.get();
         colorChangeCausesCustom = false;
+        themeChanged = true;
         switch (theme) {
         case "Emperor":
             // This should match the defaults in config.json and config.c
@@ -95,8 +96,13 @@ var clay = new Clay(clayConfig, function(minified) {
         // case "Ebony Devil":
         // case "Sun":
         default:
+            themeChanged = false;
             break;
         }
+        if (themeChanged) {
+            clayConfig.getItemByMessageKey("alarmColor").set(clayConfig.getItemByMessageKey("status1Color").get())
+        }
+
         colorChangeCausesCustom = true;
     }
 
@@ -209,6 +215,7 @@ var clay = new Clay(clayConfig, function(minified) {
 
         register_toggle_group("connStatusEnabled");
         register_toggle_group("quietStatusEnabled");
+        register_toggle_group("alarmIndicatorEnabled");
         register_toggle_group("batteryMeterEnabled");
 
         for (var compMode of clayConfig.getItemsByGroup("compModes")) {

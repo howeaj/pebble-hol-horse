@@ -14,6 +14,7 @@ typedef struct HandAngles {
     int32_t sec;
 } HandAngles;
 
+void analogue_angles(struct tm *tick_time, TimeUnits units_changed, HandAngles *angles);
 void analogue_update_angles(struct tm *tick_time, TimeUnits units_changed);
 HandAngles analogue_get_angles(void);
 bool analogue_is_vertical(int32_t angle);

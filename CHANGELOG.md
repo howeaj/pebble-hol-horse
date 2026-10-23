@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+- Add alarm indicator
+
 ## 1.0.2
 
 - Fix "Fast" animation speed graphical glitches and crash

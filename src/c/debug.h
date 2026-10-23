@@ -13,6 +13,7 @@
 #define FORCE_BACKLIGHT_ON (DEMO || DEBUG || 0)
 #define FORCE_BLUETOOTH_DISCONNECT (DEBUG || 0)  // because emu-bt-connection takes forever
 #define FORCE_QUIET_TIME (DEBUG || 0)
+#define FORCE_ALARM_INDICATOR (DEBUG ? (60 * 150) : 0)  // value is seconds in the future
 #define DEBUG_DRAW_FACE 0  // plot parts of the face with pebble graphics (normally baked in to face.png)
 #define DEBUG_SHOW_COMPL_RECTS 0  // draw the complication placement bounding boxes
 #define DEBUG_SHOW_BGBUFFERS 0  // draw the complication bgbuffer bounding boxes

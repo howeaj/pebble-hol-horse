@@ -4,6 +4,7 @@ Tags: roman numerals, round, anime, manga, novelty, functional, ornate, fancy, e
 
 Configurable features:
     - Battery meter
+    - Alarm indicator
     - Status icons:
         - Bluetooth disconnection (ゴゴゴ)
         - Quiet time (しーん)
@@ -17,7 +18,7 @@ Configurable features:
     - Custom text (brand, monogram etc.)
     - Colours fully customisable (preset and custom themes)
     - Animation speed: Normal, Fast or Off
-    - Individually set each complication to be always visible, show on shake or disabled entirely.
+    - Complication visibility: Always, Never, or On Activity (for each individually)
 
 Coming soon:
     - Weather, temperature, rain, uv index etc.

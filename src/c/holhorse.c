@@ -137,6 +137,34 @@ static void draw_hand_sec_shadow(Layer* layer, GContext* ctx, int32_t angle) {
     graphics_draw_line(ctx, centre, tip);
 }
 
+static void draw_alarm_indicator(Layer* layer, GContext* ctx) {
+    time_t timestamp;
+    if (alarm_service_peek_next(&timestamp) || FORCE_ALARM_INDICATOR) {
+        const time_t now = time(NULL);
+
+#if FORCE_ALARM_INDICATOR
+        timestamp = now + FORCE_ALARM_INDICATOR;
+#endif  // FORCE_ALARM_INDICATOR
+
+        // only show if its within 12 hours of now
+        const time_t diff = timestamp - now;
+        if (WITHIN(diff, 0, 12 * 60 * 60)) {
+            HandAngles angles;
+            analogue_angles(localtime(&timestamp), HOUR_UNIT | MINUTE_UNIT, &angles);
+
+            const int32_t radius = PBL_DISPLAY_WIDTH / 2;
+            const GPoint indicator_location = point_from_angle(GPoint(radius, radius), angles.hour, radius - 3);
+
+            // TODO draw something more interesting?
+            graphics_context_set_antialiased(ctx, false);
+            graphics_context_set_fill_color(ctx, config_get()->alarmColor);
+            graphics_fill_circle(ctx, indicator_location, 2);
+
+            // TODO maybe show minutes indicator when its <1hour?
+        }
+    }
+}
+
 
 /******************************************************************************
  This watchface implementation; handlers
@@ -295,6 +323,9 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
         if (config->batteryMeterEnabled) {
             draw_face_text(bounds, ctx);
             draw_battery_meter(bounds, ctx);
+        }
+        if (config->alarmIndicatorEnabled) {
+            draw_alarm_indicator(layer, ctx);
         }
 
         // hands
