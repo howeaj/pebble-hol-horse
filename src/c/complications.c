@@ -552,16 +552,16 @@ static void update_complication_size(Complication* complication) {
     ASSERT(complication->rect.size.h <= MAX_COMPLICATION_SIZE.h);
 }
 
-static bool is_other_drawn_before_complication(const Complication* complication, const Complication* other) {
+static bool is_a_drawn_before_b(const Complication* a, const Complication* b) {
     return (
         (
-            (complication->mode == ComplicationMode_OnActivate) && (
-                (other->mode == ComplicationMode_OnAlways)
-                || ((other->mode == ComplicationMode_OnActivate) && (other->index < complication->index))
+            (b->mode == ComplicationMode_OnActivate) && (
+                (a->mode == ComplicationMode_OnAlways)
+                || ((a->mode == ComplicationMode_OnActivate) && (a->index < b->index))
             )
         ) || (
-            (complication->mode == ComplicationMode_OnAlways) && (
-                (other->mode == ComplicationMode_OnAlways) && (other->index < complication->index)
+            (b->mode == ComplicationMode_OnAlways) && (
+                (a->mode == ComplicationMode_OnAlways) && (a->index < b->index)
             )
         )
     );
@@ -572,30 +572,28 @@ static bool is_other_drawn_before_complication(const Complication* complication,
 // Comps are drawn from 0 to MAX_COMPLICATIONS,
 // except all "OnAlways" comps are drawn before "OnActivate" Comps
 static const Complication* get_previously_drawn_complication(const Complication* complication) {
-    const Complication* previous = NULL;
+    const Complication* latest_faster = NULL; // the highest-index comp that appears before this one
+    const Complication* previous_equal = NULL; // the closest-previous comp with the same mode as this one
 
     for (int32_t i = (NUM_COMPLICATIONS - 1); i >= 0; i--) {
         const Complication* const other = &s_complications[i];
-        if (is_other_drawn_before_complication(complication, other)) {
-            previous = other;
+        if (is_a_drawn_before_b(other, complication)) {
+            latest_faster = other;
             break;
         }
     }
-    // TODO implement less hardcodedly
-    if ((previous != NULL) && (previous->index > complication->index)) {
-        ASSERT(complication->mode == ComplicationMode_OnActivate);
-        ASSERT(previous->mode == ComplicationMode_OnAlways);
-        ASSERT(complication->index <= 1);
-        ASSERT(NUM_COMPLICATIONS == 3);
-        if (complication->index == 1) {
-            if (s_complications[0].mode == ComplicationMode_OnActivate) {
-                // config is [Activate, Activate, Always] and the order is [2, 0, 1]
-                previous = &s_complications[0];
-            }
+    for (int32_t i = (complication->index - 1); i >= 0; i--) {
+        const Complication* const other = &s_complications[i];
+        if (other->mode == complication->mode) {
+            previous_equal = other;
+            break;
         }
     }
-
-    return previous;
+    if ((previous_equal != NULL) && (latest_faster != NULL)) {
+        return previous_equal;
+    } else {
+        return latest_faster;
+    }
 }
 
 // how many segments to divide the clockface into for fallback gap detection
@@ -762,7 +760,7 @@ static void update_complication_position(Complication* complication, bool avoid_
         // TODO get closer by taking into account the floating movement
         for (uint32_t i = 0; i < NUM_COMPLICATIONS; i++) {
             const Complication* const other = &s_complications[i];
-            if (is_other_drawn_before_complication(complication, other)) {
+            if (is_a_drawn_before_b(other, complication)) {
                 if (ABSDIFF_WRAP(arc_centre_angle, other->angle, TRIG_MAX_ANGLE)
                         < (((other->arc + arc) / 2) - DEG_TO_TRIGANGLE(15)))
                 {
