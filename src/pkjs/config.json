@@ -79,6 +79,13 @@
         {"label": "Off",    "value": "2" }
       ]
     },
+    { "type": "select", "messageKey": "placementType", "label": "Placement",
+      "defaultValue": "0",
+      "options": [
+        {"label": "Avoid hands", "value": "0" },
+        {"label": "Static",   "value": "1" }
+      ]
+    },
     { "type": "section",
       "items": [
         { "type": "heading", "size": 5, "defaultValue": "#1" },

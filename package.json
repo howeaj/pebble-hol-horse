@@ -50,6 +50,7 @@
       "comp2TimezoneText",
       "comp3TimezoneText",
       "animationSpeed",
+      "placementType",
       "quietStatusEnabled",
       "connStatusEnabled",
       "alarmIndicatorEnabled",

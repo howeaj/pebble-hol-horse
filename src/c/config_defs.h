@@ -64,6 +64,7 @@
     MACRO(STR,   char, [FACE_TEXT_SIZE], faceText,            "pebble") \
     MACRO(BOOL,  bool,,                  alarmIndicatorEnabled, true) \
     MACRO(COLOR, GColor,,                alarmColor,          GColorDarkCandyAppleRed) \
+    MACRO(ENUM,  PlacementType,,         placementType,       PlacementType_Dynamic) \
 /* end of X_CONFIG_OPTIONS */
 
 
@@ -94,3 +95,8 @@ typedef enum AnimationSpeed {
     AnimationSpeed_Fast = 1,
     AnimationSpeed_Off = 2,
 } AnimationSpeed;
+
+typedef enum PlacementType {
+    PlacementType_Dynamic = 0,
+    PlacementType_Static = 1,
+} PlacementType;

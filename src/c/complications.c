@@ -783,7 +783,7 @@ static bool find_clear_space(Complication* complication, int32_t start_angle_deg
 
 // Set the initial position of a complication
 static void init_complication_position(Complication* complication, bool avoid_second_hand) {
-    if (s_is_timeline_peeking) {
+    if (s_is_timeline_peeking || (config_get()->placementType == PlacementType_Static)) {
         // static placement
         const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
         const int32_t angles[3] = {270, 90, s_is_timeline_peeking ? 0 : 180};

@@ -2,6 +2,7 @@
 
 ## 1.2.0
 
+- Config option to place complications in fixed positions instead of avoiding hands
 - Complications avoid being hidden by timeline peek
 - Complications prefer to overlap hands over other complications
 
