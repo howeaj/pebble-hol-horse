@@ -69,7 +69,6 @@ typedef struct Complication {
     GPoint shake_offset;
     int32_t animation_counter;
     int32_t angle;
-    int32_t arc;
 } Complication;
 
 static GFont s_font;
@@ -618,26 +617,30 @@ static void populate_gap_array(const Complication* complication, bool is_segment
 
     LOG("num_full_angles = %d", num_full_angles);
 
-    // how many segments each object extends either side of its centre (approximate)
+    // How many segments each object extends either side of its centre (approximate)
     // (must match the order assigned to full_angles above)
+    // Set inaccurately with bias to prefer overlapping hands to complications
     const int32_t half_arc[5] = {
         0, // second hand
-        1, // minute hand
-        1, // hour hand
-        3, // complication
-        3, // complication
+        0, // minute hand
+        0, // hour hand
+        5, // complication
+        5, // complication
     };
 
     for (int32_t i = 0; i < num_full_angles; i++) {
         const int32_t segment = MUL_FRACT(full_angles[i], GAP_NUM_SEGMENTS, TRIG_MAX_ANGLE);
         is_segment_full[segment] = true;
-        is_segment_full[(segment + half_arc[i]) % GAP_NUM_SEGMENTS] = true;
-        is_segment_full[(segment - half_arc[i]) % GAP_NUM_SEGMENTS] = true;
+        for (int32_t j = 1; j <= half_arc[i]; j++) {
+            is_segment_full[(segment - j) % GAP_NUM_SEGMENTS] = true;
+            is_segment_full[(segment + j) % GAP_NUM_SEGMENTS] = true;
+        }
     }
 }
 
 /// Fallback algorithm to place a complication when we've failed to calculate a
 /// position that definitely won't overlap
+/// Return centre of the gap in degrees
 static int32_t find_biggest_gap(const Complication* complication) {
     bool is_segment_full[GAP_NUM_SEGMENTS] = {false};
     populate_gap_array(complication, is_segment_full);
@@ -647,12 +650,10 @@ static int32_t find_biggest_gap(const Complication* complication) {
     while (!is_segment_full[start] && (start < GAP_NUM_SEGMENTS)) {
         start++;
     }
-    while (is_segment_full[start] && (start < GAP_NUM_SEGMENTS)) {
+    while (is_segment_full[start % GAP_NUM_SEGMENTS] && (start < (GAP_NUM_SEGMENTS * 2))) {
         start++;
     }
-    ASSERT(start != 0);
-    // this breaks if there's only one gap, but it shouldn't be possible to be here in that case.
-    ASSERT(start < (GAP_NUM_SEGMENTS - 1));
+    start = start % GAP_NUM_SEGMENTS;
 
     int32_t largest_gap_centre_index = -1;
     int32_t largest_gap_size = 1;
@@ -672,35 +673,30 @@ static int32_t find_biggest_gap(const Complication* complication) {
         }
     }
 
-    LOG("best gap centre = %d", largest_gap_centre_index);
-    return MUL_FRACT(largest_gap_centre_index, TRIG_MAX_ANGLE, GAP_NUM_SEGMENTS);
+    LOG("best gap centre = segment # %d", largest_gap_centre_index);
+    return MUL_FRACT(largest_gap_centre_index, 360, GAP_NUM_SEGMENTS);
 }
 
-// Set the initial position of a complication
-static void update_complication_position(Complication* complication, bool avoid_second_hand) {
+static bool complication_rects_overlap(const GRect *r1, const GRect *r2) {
+    return (((r1->origin.x - SHAD_OFF) < (r2->origin.x + r2->size.w)) // Left edge of r1 not past r2's right edge
+        && ((r1->origin.x + r1->size.w) > (r2->origin.x - SHAD_OFF)) // Right edge of r1 is right of r2's left edge
+        && (r1->origin.y < (r2->origin.y + r2->size.h + SHAD_OFF)) // Top edge r1 not below r2's bottom edge
+        && ((r1->origin.y + r1->size.h + SHAD_OFF) > r2->origin.y) // Bottom edge r1 not above r2's top edge
+    );
+}
+
+// Set the complication's rect to the first clear space clockwise from `start_angle_deg`.
+// Return false if a clear space wasn't found.
+static bool find_clear_space(Complication* complication, int32_t start_angle_deg, bool avoid_hands, bool avoid_second_hand) {
     const uint32_t index = complication->index;
     const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
 
-    // Initial placement depends on its lifetime boundaries
-    // For "always on" comps with no movement, still pretend it will float up a bit
-    // to give a similar amount of space around them
     const bool is_on_activate = (complication->mode == ComplicationMode_OnActivate);
-    const uint32_t float_dist_index = is_on_activate ? index : (NUM_COMPLICATIONS - 1);
+    const uint32_t float_dist_index = is_on_activate ? complication->index : (NUM_COMPLICATIONS - 1);
     const int16_t floatup_dist = floatup_distance(float_dist_index);
     const GSize total_size = lifetime_rect(complication->rect, float_dist_index).size;
 
-    // Start searching from the previous complication's angle
-    // TODO starting from a fixed angle can waste some space; start from the hour hand? start from a random hand?
-    // WONTDO handle comp2 disabled but comp1 and comp3 enabled
-    int32_t start_angle_deg = 0;
-    const Complication* const previous_comp = get_previously_drawn_complication(complication);
-    if (previous_comp == NULL) {
-        if (config_get()->batteryMeterEnabled) {
-            start_angle_deg = is_on_activate ? 90 : 55;
-        }
-    } else {
-        start_angle_deg = TRIGANGLE_TO_DEG(previous_comp->angle + MIN_TO_TRIGANGLE(4)) % 360;
-    }
+    LOG("Find clear space starting from %d deg, avoid_hands=%s", start_angle_deg, BOOL_TO_STR(avoid_hands));
 
     // Search for an angle with enough space to fit the complication for its whole life (total_size)
     // TODO maybe searching "downwards" helps to pack floaters?
@@ -712,58 +708,59 @@ static void update_complication_position(Complication* complication, bool avoid_
             bitmap_centre.x - total_size.w / 2,
             bitmap_centre.y - total_size.h / 2
         };
-        // find the arc angle covered by the rect
-        const int32_t corner_angles[4] = {
-            angle_between_points(display_centre, origin),
-            angle_between_points(display_centre, (GPoint){origin.x, origin.y + total_size.h}),
-            angle_between_points(display_centre, (GPoint){origin.x + total_size.w, origin.y}),
-            angle_between_points(display_centre, (GPoint){origin.x + total_size.w, origin.y + total_size.h}),
-        };
-        // LOG("%d %d %d %d", TRIGANGLE_TO_DEG(comp_angles[0]), TRIGANGLE_TO_DEG(comp_angles[1]),
-        //                    TRIGANGLE_TO_DEG(comp_angles[2]), TRIGANGLE_TO_DEG(comp_angles[3]));
-        const int32_t corner_to_corner_arc_angle[6] = {
-            ABSDIFF_WRAP(corner_angles[0], corner_angles[1], TRIG_MAX_ANGLE),
-            ABSDIFF_WRAP(corner_angles[0], corner_angles[2], TRIG_MAX_ANGLE),
-            ABSDIFF_WRAP(corner_angles[0], corner_angles[3], TRIG_MAX_ANGLE),
-            ABSDIFF_WRAP(corner_angles[1], corner_angles[2], TRIG_MAX_ANGLE),
-            ABSDIFF_WRAP(corner_angles[1], corner_angles[3], TRIG_MAX_ANGLE),
-            ABSDIFF_WRAP(corner_angles[2], corner_angles[3], TRIG_MAX_ANGLE),
-        };
-        int32_t arc = 0;
-        for (size_t i = 0; i < ARRAY_LEN(corner_to_corner_arc_angle); i++) {
-            if (corner_to_corner_arc_angle[i] > arc) {
-                arc = corner_to_corner_arc_angle[i];
+
+        if (avoid_hands) {
+            // find the arc angle covered by the rect
+            const int32_t corner_angles[4] = {
+                angle_between_points(display_centre, origin),
+                angle_between_points(display_centre, (GPoint){origin.x, origin.y + total_size.h}),
+                angle_between_points(display_centre, (GPoint){origin.x + total_size.w, origin.y}),
+                angle_between_points(display_centre, (GPoint){origin.x + total_size.w, origin.y + total_size.h}),
+            };
+            const int32_t corner_to_corner_arc_angle[6] = {
+                ABSDIFF_WRAP(corner_angles[0], corner_angles[1], TRIG_MAX_ANGLE),
+                ABSDIFF_WRAP(corner_angles[0], corner_angles[2], TRIG_MAX_ANGLE),
+                ABSDIFF_WRAP(corner_angles[0], corner_angles[3], TRIG_MAX_ANGLE),
+                ABSDIFF_WRAP(corner_angles[1], corner_angles[2], TRIG_MAX_ANGLE),
+                ABSDIFF_WRAP(corner_angles[1], corner_angles[3], TRIG_MAX_ANGLE),
+                ABSDIFF_WRAP(corner_angles[2], corner_angles[3], TRIG_MAX_ANGLE),
+            };
+            int32_t arc = 0;
+            for (size_t i = 0; i < ARRAY_LEN(corner_to_corner_arc_angle); i++) {
+                if (corner_to_corner_arc_angle[i] > arc) {
+                    arc = corner_to_corner_arc_angle[i];
+                }
+            }
+
+            const int32_t arc_centre_angle = angle;  // TODO this is not true for rects
+            // Check for collision with clockhands
+            const HandAngles hand_angles = analogue_get_angles();
+            const int32_t second_centre = hand_angles.sec + (
+                  (index == 0) ?  SEC_TO_TRIGANGLE(1)
+                : (index == 2) ? -SEC_TO_TRIGANGLE(1)
+                : 0
+            );
+            if ((avoid_second_hand
+                 && (ABSDIFF_WRAP(arc_centre_angle, second_centre, TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(2.5) + arc) / 2))
+                )
+             || (ABSDIFF_WRAP(arc_centre_angle, hand_angles.min,  TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(3.5) + arc) / 2))
+             || (ABSDIFF_WRAP(arc_centre_angle, hand_angles.hour, TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(5.5) + arc) / 2))
+            ) {
+                continue;
             }
         }
-        const int32_t arc_centre_angle = angle;  // TODO this is not true for rects
 
-        // Check for collision with clockhands
-        const HandAngles hand_angles = analogue_get_angles();
-        const int32_t second_centre = hand_angles.sec + (
-              (index == 0) ?  SEC_TO_TRIGANGLE(1)
-            : (index == 2) ? -SEC_TO_TRIGANGLE(1)
-            : 0
-        );
-        // TODO the hour centre is also different
-        // TODO if we're close to a minute, the hour/min hands are going to move...
-        if ((avoid_second_hand
-             && (ABSDIFF_WRAP(arc_centre_angle, second_centre, TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(2.5) + arc) / 2))
-            )
-         || (ABSDIFF_WRAP(arc_centre_angle, hand_angles.min,  TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(3.5) + arc) / 2))
-         || (ABSDIFF_WRAP(arc_centre_angle, hand_angles.hour, TRIG_MAX_ANGLE) < ((MIN_TO_TRIGANGLE(5.5) + arc) / 2))
-        ) {
-            continue;
-        }
+        const GRect start_rect = (GRect){
+            .origin = {origin.x, origin.y + floatup_dist},
+            .size = complication->rect.size
+        };
 
         // Check for collision with other complications
         bool overlaps_other_complication = false;
-        // TODO get closer by taking into account the floating movement
         for (uint32_t i = 0; i < NUM_COMPLICATIONS; i++) {
             const Complication* const other = &s_complications[i];
             if (is_a_drawn_before_b(other, complication)) {
-                if (ABSDIFF_WRAP(arc_centre_angle, other->angle, TRIG_MAX_ANGLE)
-                        < (((other->arc + arc) / 2) - DEG_TO_TRIGANGLE(15)))
-                {
+                if (complication_rects_overlap(&start_rect, &other->rect)) {
                     overlaps_other_complication = true;
                     break;
                 }
@@ -774,25 +771,38 @@ static void update_complication_position(Complication* complication, bool avoid_
         }
 
         // Success!
-        complication->angle = arc_centre_angle;
-        complication->arc = arc;
-        complication->rect.origin = origin;
-        complication->rect.origin.y += floatup_dist;
-        return;
+        complication->angle = angle;
+        complication->rect = start_rect;
+        return true;
     }
 
-    // This should only be possible for the last complication
-    LOG_ERR("Failed to place complication #%u", index);
+    return false;
+}
 
-    // Fallback; just put it in the biggest gap.
-    complication->angle = find_biggest_gap(complication);
-    complication->arc = 0; // don't bother setting it correctly; only used for the previous angle selection algorithm
-    const GPoint bitmap_centre = point_from_angle(display_centre, complication->angle, COMPLICATION_RADIUS);
-    complication->rect.origin = GPoint(
-        bitmap_centre.x - total_size.w / 2,
-        bitmap_centre.y - total_size.h / 2
-    );
-    complication->rect.origin.y += floatup_dist;
+// Set the initial position of a complication
+static void init_complication_position(Complication* complication, bool avoid_second_hand) {
+
+    // Start searching from the previous complication's angle
+    int32_t start_angle_deg = 0;
+    const Complication* const previous_comp = get_previously_drawn_complication(complication);
+    if (previous_comp == NULL) {
+        if (config_get()->batteryMeterEnabled) {
+            // Initial placement depends on its lifetime boundaries
+            // For "always on" comps with no movement, still pretend it will float up a bit
+            // to give a similar amount of space around them
+            const bool is_on_activate = (complication->mode == ComplicationMode_OnActivate);
+            start_angle_deg = is_on_activate ? 90 : 55;
+        }
+    } else {
+        start_angle_deg = TRIGANGLE_TO_DEG(previous_comp->angle + MIN_TO_TRIGANGLE(4)) % 360;
+    }
+
+    if (!find_clear_space(complication, start_angle_deg, true, avoid_second_hand)) {
+        LOG_ERR("Failed to place complication #%u", complication->index);
+        // Fallback; start from the biggest gap and stop avoiding hands
+        start_angle_deg = find_biggest_gap(complication);
+        ASSERT(find_clear_space(complication, start_angle_deg, false, false));
+    }
 }
 
 // Initialise or update a complication, and start showing it
@@ -803,7 +813,7 @@ static void complication_start(uint32_t index, bool avoid_second_hand) {
 
     update_complication_display_value(complication);
     update_complication_size(complication);
-    update_complication_position(complication, avoid_second_hand);
+    init_complication_position(complication, avoid_second_hand);
 
     if (complication->mode == ComplicationMode_OnActivate) {
 #if DEBUG_SHOW_COMPL_RECTS

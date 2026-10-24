@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Improve placement algorithm to reduce possible complication overlap
+
 ## 1.1.0
 
 - Add alarm indicator
