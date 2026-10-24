@@ -1,8 +1,9 @@
 # Changelog
 
-## 1.1.1
+## 1.2.0
 
-- Improve placement algorithm to reduce possible complication overlap
+- Complications avoid being hidden by timeline peek
+- Complications prefer to overlap hands over other complications
 
 ## 1.1.0
 

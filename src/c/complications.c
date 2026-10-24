@@ -77,6 +77,8 @@ static GBitmap* s_tick;
 static GBitmap* s_go;
 static Complication s_complications[NUM_COMPLICATIONS];
 
+static bool s_is_timeline_peeking = false;
+
 static const int32_t s_frames_per_state[ComplicationState_MAX] = {
     0,              // ComplicationState_Off
     FRAMERATE / 4,  // ComplicationState_Appear
@@ -781,27 +783,40 @@ static bool find_clear_space(Complication* complication, int32_t start_angle_deg
 
 // Set the initial position of a complication
 static void init_complication_position(Complication* complication, bool avoid_second_hand) {
-
-    // Start searching from the previous complication's angle
-    int32_t start_angle_deg = 0;
-    const Complication* const previous_comp = get_previously_drawn_complication(complication);
-    if (previous_comp == NULL) {
-        if (config_get()->batteryMeterEnabled) {
-            // Initial placement depends on its lifetime boundaries
-            // For "always on" comps with no movement, still pretend it will float up a bit
-            // to give a similar amount of space around them
-            const bool is_on_activate = (complication->mode == ComplicationMode_OnActivate);
-            start_angle_deg = is_on_activate ? 90 : 55;
+    if (s_is_timeline_peeking) {
+        // static placement
+        const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
+        const int32_t angles[3] = {270, 90, s_is_timeline_peeking ? 0 : 180};
+        const int32_t angle = DEG_TO_TRIGANGLE(angles[complication->index]);
+        const GPoint bitmap_centre = point_from_angle(display_centre, angle, COMPLICATION_RADIUS);
+        const GPoint origin = {
+            bitmap_centre.x - complication->rect.size.w / 2,
+            bitmap_centre.y - complication->rect.size.h / 2
+        };
+        complication->angle = angle;
+        complication->rect.origin = origin;
+    } else {  // dynamic placement avoiding hands
+        // Start searching from the previous complication's angle
+        int32_t start_angle_deg = 0;
+        const Complication* const previous_comp = get_previously_drawn_complication(complication);
+        if (previous_comp == NULL) {
+            if (config_get()->batteryMeterEnabled) {
+                // Initial placement depends on its lifetime boundaries
+                // For "always on" comps with no movement, still pretend it will float up a bit
+                // to give a similar amount of space around them
+                const bool is_on_activate = (complication->mode == ComplicationMode_OnActivate);
+                start_angle_deg = is_on_activate ? 90 : 55;
+            }
+        } else {
+            start_angle_deg = TRIGANGLE_TO_DEG(previous_comp->angle + MIN_TO_TRIGANGLE(4)) % 360;
         }
-    } else {
-        start_angle_deg = TRIGANGLE_TO_DEG(previous_comp->angle + MIN_TO_TRIGANGLE(4)) % 360;
-    }
 
-    if (!find_clear_space(complication, start_angle_deg, true, avoid_second_hand)) {
-        LOG_ERR("Failed to place complication #%u", complication->index);
-        // Fallback; start from the biggest gap and stop avoiding hands
-        start_angle_deg = find_biggest_gap(complication);
-        ASSERT(find_clear_space(complication, start_angle_deg, false, false));
+        if (!find_clear_space(complication, start_angle_deg, true, avoid_second_hand)) {
+            LOG_ERR("Failed to place complication #%u", complication->index);
+            // Fallback; start from the biggest gap and stop avoiding hands
+            start_angle_deg = find_biggest_gap(complication);
+            ASSERT(find_clear_space(complication, start_angle_deg, false, false));
+        }
     }
 }
 
@@ -837,7 +852,9 @@ static void complication_start_callback(void* context) {
     complication_start(complication_index, true);
 }
 
-void complication_start_next(void) {
+void complication_start_next(bool is_timeline_peeking) {
+    s_is_timeline_peeking = is_timeline_peeking;
+
     const AnimationSpeed anim_speed = config_get()->animationSpeed;
     uint32_t fastAnimDelayMs = 0;
 

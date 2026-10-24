@@ -4,10 +4,10 @@
     - animation improvements
         - don't dirty entire framebuffer
         - don't wakeup when nothing needs updates
-    - complications avoid timeline peek
+    - emery support
+    - activity: shake, backlight, startup only
     - more colour themes
     - -flto gcc opt
-    - emery support
     - Debug render all complication values for testing
     - If seconds are visible at noon, play shoot animation panels
     - turn battery meter green when on charge & 80%
@@ -31,6 +31,7 @@
 #include "misc.h"
 
 
+static bool is_timeline_peeking(void);
 static bool should_show_seconds(void);
 
 
@@ -191,7 +192,7 @@ static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
     if (should_show_seconds()) {
         s_num_seconds_shown = MIN(MAX_NUM_SECONDS, s_num_seconds_shown + 1);
         ASSERT(s_num_seconds_shown > 0);
-        complication_start_next();
+        complication_start_next(is_timeline_peeking());
     } else {
         if (units_changed & MINUTE_UNIT) {
             complications_update();
@@ -439,6 +440,13 @@ static void handle_config(const Config* config) {
 
 static Window* s_main_window;
 static int8_t s_active_ticks_remaining = -1;
+
+static bool is_timeline_peeking(void) {
+    const Layer* window_layer = window_get_root_layer(s_main_window);
+    const GRect fullscreen = layer_get_bounds(window_layer);
+    const GRect unobstructed_bounds = layer_get_unobstructed_bounds(window_layer);
+    return fullscreen.size.h != unobstructed_bounds.size.h;
+}
 
 static bool should_show_seconds(void) {
     return s_active_ticks_remaining > 0;
