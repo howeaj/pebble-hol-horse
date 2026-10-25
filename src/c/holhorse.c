@@ -195,7 +195,7 @@ static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
         complication_start_next(is_timeline_peeking());
     } else {
         if (units_changed & MINUTE_UNIT) {
-            complications_update();
+            complications_update(is_timeline_peeking());
         }
         if (s_num_seconds_shown > 0) {
             complications_stop();
@@ -297,6 +297,16 @@ static void draw_face(GRect bounds, GContext* ctx) {
 static void draw_root_layer(Layer* layer, GContext* ctx) {
     // TRACE("draw_root_layer; s_num_seconds_shown = %d", s_num_seconds_shown);
     PROFILE_START();
+
+    // Update "Always" complication positions if peek state changes
+    static bool was_peeking = false;
+    const bool is_peeking = is_timeline_peeking();
+    if (is_peeking != was_peeking) {
+        was_peeking = is_peeking;
+        if (complications_update(is_peeking)) {
+            s_is_full_redraw = true;
+        }
+    }
 
     graphics_context_set_compositing_mode(ctx, GCompOpSet); // enable transparency
     if (s_is_full_redraw)

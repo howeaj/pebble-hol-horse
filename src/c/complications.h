@@ -12,7 +12,7 @@
 
 void complications_draw(Layer* layer, GContext* ctx, bool is_full_redraw);
 void complication_start_next(bool is_timeline_peeking);
-void complications_update(void);
+bool complications_update(bool is_timeline_peeking);
 void complications_stop(void);
 void complications_configure(const Config* config);
 void complications_init(void);

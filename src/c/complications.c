@@ -77,7 +77,7 @@ static GBitmap* s_tick;
 static GBitmap* s_go;
 static Complication s_complications[NUM_COMPLICATIONS];
 
-static bool s_is_timeline_peeking = false;
+static bool s_is_timeline_peeking = false;  // TODO access this state directly instead of keeping a copy
 
 static const int32_t s_frames_per_state[ComplicationState_MAX] = {
     0,              // ComplicationState_Off
@@ -326,8 +326,8 @@ static void complication_draw_animated(GContext* ctx, Complication* complication
     }
 }
 
-// Draw all static ("Always show") complications
-static void complications_draw_static(GContext* ctx) {
+// Draw all ("Always show") complications
+static void complications_draw_always_shown(GContext* ctx) {
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
         const Complication* const complication = &s_complications[i];
         if (complication->mode == ComplicationMode_OnAlways) {
@@ -369,8 +369,9 @@ static void complications_draw_activated(GContext* ctx, bool is_full_redraw) {
 
 void complications_draw(Layer* layer, GContext* ctx, bool is_full_redraw) {
     UNUSED(layer);
+
     if (is_full_redraw){
-        complications_draw_static(ctx);
+        complications_draw_always_shown(ctx);
     }
     complications_snapshot_activated(ctx, is_full_redraw);
     complications_draw_activated(ctx, is_full_redraw);
@@ -398,7 +399,7 @@ static void complications_nextframe(void* context) {
     } else {
         LOG("LAST COMPLICATIONS_NEXTFRAME");
         s_animation_timer = NULL;
-        complications_update();
+        complications_update(s_is_timeline_peeking);
         mark_root_window_dirty(true);
     }
 }
@@ -876,14 +877,20 @@ void complication_start_next(bool is_timeline_peeking) {
     }
 }
 
-// Update any always-on complications; intended to be called on each minute tick
-void complications_update(void) {
+// Update any always-on complications; call whenever screen layout changes.
+// Returns true if any complications were updated i.e. are Always-On.
+bool complications_update(bool is_timeline_peeking) {
+    s_is_timeline_peeking = is_timeline_peeking;
+
+    bool any_updated = false;
     for (int32_t i = 0; i < NUM_COMPLICATIONS; i++) {
         Complication* const complication = &s_complications[i];
         if (complication->mode == ComplicationMode_OnAlways) {
             complication_start(i, false);
+            any_updated = true;
         }
     }
+    return any_updated;
 }
 
 void complications_stop(void) {
