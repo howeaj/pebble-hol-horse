@@ -4,7 +4,6 @@
     - animation improvements
         - don't dirty entire framebuffer
         - don't wakeup when nothing needs updates
-    - emery support
     - activity: shake, backlight, startup only
     - more colour themes
     - -flto gcc opt
@@ -87,6 +86,7 @@ static void draw_hand_min(Layer* layer, GContext* ctx, int32_t angle) {
 
     // Select the target draw origin so that its centrepoint is in the centre of the screen.
     static const GPoint bitmap_centre_points[NUM_MINUTE_BITMAPS] = {
+#if PBL_PLATFORM_GABBRO
         {8, 122},  // 0
         {4, 121},  // 6
         {2, 119},  // 12
@@ -95,6 +95,16 @@ static void draw_hand_min(Layer* layer, GContext* ctx, int32_t angle) {
         {0, 105},  // 30
         {0, 99},  // 36
         {0, 91},  // 42
+#else // !PBL_PLATFORM_GABBRO
+        {8, 100},  // 0
+        {6, 99},  // 6
+        {4, 96},  // 12
+        {3, 94},  // 18
+        {2, 91},  // 24
+        {0, 85},  // 30
+        {0, 80},  // 36
+        {0, 73},  // 42
+#endif // !PBL_PLATFORM_GABBRO
     };
     const GBitmap* bitmap = s_min_hand_bitmaps[bitmap_index];
     const GRect target_rect = bitmap_point_on_centre(bitmap, bitmap_centre_points[bitmap_index], layer);
@@ -153,8 +163,15 @@ static void draw_alarm_indicator(Layer* layer, GContext* ctx) {
             HandAngles angles;
             analogue_angles(localtime(&timestamp), HOUR_UNIT | MINUTE_UNIT, &angles);
 
-            const int32_t radius = PBL_DISPLAY_WIDTH / 2;
-            const GPoint indicator_location = point_from_angle(GPoint(radius, radius), angles.hour, radius - 3);
+            const GPoint indicator_location = point_from_angle(
+                GPoint(PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_HEIGHT / 2),
+                angles.hour,
+#if PBL_PLATFORM_GABBRO
+                (PBL_DISPLAY_WIDTH / 2) - 3
+#else // !PBL_PLATFORM_GABBRO
+                (PBL_DISPLAY_WIDTH / 3)
+#endif // !PBL_PLATFORM_GABBRO
+            );
 
             // TODO draw something more interesting?
             graphics_context_set_antialiased(ctx, false);
@@ -229,7 +246,11 @@ static void draw_disconnect_status(const GRect bounds, GContext* ctx) {
     UNUSED(bounds);
     if (!connection_service_peek_pebble_app_connection() || FORCE_BLUETOOTH_DISCONNECT) {
         const GRect rect = {
+#if PBL_PLATFORM_GABBRO
             .origin = {187, 33},
+#else // !PBL_PLATFORM_GABBRO
+            .origin = {152, 22},
+#endif // !PBL_PLATFORM_GABBRO
             .size = gbitmap_get_bounds(s_icon_disconnect).size,
         };
         graphics_draw_bitmap_in_rect(ctx, s_icon_disconnect, rect);
@@ -240,7 +261,11 @@ static void draw_quiet_time_status(const GRect bounds, GContext* ctx) {
     UNUSED(bounds);
     if (quiet_time_is_active() || FORCE_QUIET_TIME) {
         const GRect rect = {
+#if PBL_PLATFORM_GABBRO
             .origin = {35, 43},  // note {9, 86} would be the next section down
+#else // !PBL_PLATFORM_GABBRO
+            .origin = {10, 30},
+#endif // !PBL_PLATFORM_GABBRO
             .size = gbitmap_get_bounds(s_icon_silence).size,
         };
         graphics_draw_bitmap_in_rect(ctx, s_icon_silence, rect);
@@ -335,9 +360,6 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
             draw_face_text(bounds, ctx);
             draw_battery_meter(bounds, ctx);
         }
-        if (config->alarmIndicatorEnabled) {
-            draw_alarm_indicator(layer, ctx);
-        }
 
         // hands
         const HandAngles hand_angles = analogue_get_angles();
@@ -349,6 +371,10 @@ static void draw_root_layer(Layer* layer, GContext* ctx) {
         }
         if (s_num_seconds_shown > 0) {
             draw_hand_sec(layer, ctx, hand_angles.sec);
+        }
+
+        if (config->alarmIndicatorEnabled) {
+            draw_alarm_indicator(layer, ctx);
         }
 
         // draw all hand positions, for debugging

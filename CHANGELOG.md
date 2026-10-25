@@ -1,11 +1,15 @@
 # Changelog
 
+## 1.3.0
+
+- Pebble Time 2 support
+
 ## 1.2.0
 
 - Config option to place complications in fixed positions instead of avoiding hands
 - Complications avoid being hidden by timeline peek
-- Complications prefer to overlap hands over other complications
-- Fix second hand not initialised correctly
+- Complications prefer to overlap hands instead of other complications
+- Fix second hand starting position
 
 ## 1.1.0
 

@@ -1,7 +1,7 @@
 {
   "name": "Hol Horse",
   "author": "howeaj",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {
@@ -13,6 +13,7 @@
     "sdkVersion": "3",
     "enableMultiJS": true,
     "targetPlatforms": [
+      "emery",
       "gabbro"
     ],
     "watchapp": { "watchface": true },
