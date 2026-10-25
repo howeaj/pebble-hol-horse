@@ -250,7 +250,7 @@ static void draw_quiet_time_status(const GRect bounds, GContext* ctx) {
 static void draw_battery_meter(const GRect bounds, GContext* ctx) {
     graphics_context_set_fill_color(ctx, s_battery_color);
     const GRect rect = {
-        .origin = {(bounds.size.h - s_battery_pixels) / 2,
+        .origin = {(bounds.size.w - s_battery_pixels) / 2,
                     bounds.origin.y + (bounds.size.h / 4) + 20}, // below draw_face_text's text_bounds
         .size = {s_battery_pixels, 2},
     };

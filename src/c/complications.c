@@ -692,7 +692,7 @@ static bool complication_rects_overlap(const GRect *r1, const GRect *r2) {
 // Return false if a clear space wasn't found.
 static bool find_clear_space(Complication* complication, int32_t start_angle_deg, bool avoid_hands, bool avoid_second_hand) {
     const uint32_t index = complication->index;
-    const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
+    const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_HEIGHT / 2};
 
     const bool is_on_activate = (complication->mode == ComplicationMode_OnActivate);
     const uint32_t float_dist_index = is_on_activate ? complication->index : (NUM_COMPLICATIONS - 1);
@@ -786,7 +786,7 @@ static bool find_clear_space(Complication* complication, int32_t start_angle_deg
 static void init_complication_position(Complication* complication, bool avoid_second_hand) {
     if (s_is_timeline_peeking || (config_get()->placementType == PlacementType_Static)) {
         // static placement
-        const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_WIDTH / 2};
+        const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_HEIGHT / 2};
         const int32_t angles[3] = {270, 90, s_is_timeline_peeking ? 0 : 180};
         const int32_t angle = DEG_TO_TRIGANGLE(angles[complication->index]);
         const GPoint bitmap_centre = point_from_angle(display_centre, angle, COMPLICATION_RADIUS);
