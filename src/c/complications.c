@@ -787,7 +787,13 @@ static void init_complication_position(Complication* complication, bool avoid_se
     if (s_is_timeline_peeking || (config_get()->placementType == PlacementType_Static)) {
         // static placement
         const GPoint display_centre = {PBL_DISPLAY_WIDTH / 2, PBL_DISPLAY_HEIGHT / 2};
-        const int32_t angles[3] = {270, 90, s_is_timeline_peeking ? 0 : 180};
+        const int32_t middle_angle = (
+#if PBL_PLATFORM_GABBRO
+            s_is_timeline_peeking ? 0 :
+#endif // PBL_PLATFORM_GABBRO
+            180
+        );
+        const int32_t angles[3] = {270, 90, middle_angle};
         const int32_t angle = DEG_TO_TRIGANGLE(angles[complication->index]);
         const GPoint bitmap_centre = point_from_angle(display_centre, angle, COMPLICATION_RADIUS);
         const GPoint origin = {

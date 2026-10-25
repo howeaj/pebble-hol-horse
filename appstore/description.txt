@@ -19,6 +19,7 @@ Configurable features:
     - Colours fully customisable (preset and custom themes)
     - Animation speed: Normal, Fast or Off
     - Complication visibility: Always, Never, or On Activity (for each individually)
+    - Complication position: Avoid hands or Fixed
 
 Coming soon:
     - Weather, temperature, rain, uv index etc.
