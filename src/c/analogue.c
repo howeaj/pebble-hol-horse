@@ -14,14 +14,13 @@ static HandAngles s_hand_angles;
 // Update `angles` according to tick_time and units_changed
 void analogue_angles(struct tm *tick_time, TimeUnits units_changed, HandAngles *angles) {
     // +1 round up to ensure the result is always > the precise angle
-    if (units_changed & MINUTE_UNIT) {
+    if (units_changed & (MINUTE_UNIT | HOUR_UNIT)) {
         const int32_t hour_as_minutes = (((tick_time->tm_hour % 12) * MINUTES_PER_HOUR) + tick_time->tm_min);
         angles->hour = MUL_FRACT(hour_as_minutes, TRIG_MAX_ANGLE, 12 * MINUTES_PER_HOUR) + 1;
         angles->min = MUL_FRACT(tick_time->tm_min, TRIG_MAX_ANGLE, MINUTES_PER_HOUR) + 1;
     }
-    if (units_changed & SECOND_UNIT) {
-        angles->sec = MUL_FRACT(tick_time->tm_sec, TRIG_MAX_ANGLE, SECONDS_PER_MINUTE) + 1;
-    }
+    // note units_changed doesn't always contain SECONDS_UNIT, even though it should
+    angles->sec = MUL_FRACT(tick_time->tm_sec, TRIG_MAX_ANGLE, SECONDS_PER_MINUTE) + 1;
 }
 
 // Update cached hand angles from a tick handler
